@@ -298,38 +298,40 @@ void ledMenu() {
     printBlock(2);
     while(true){
         int incomingByte = SerialUSB.read();
-        if (incomingByte>=48 && incomingByte<=57) {
-            ledMode = incomingByte-48;
-            SerialUSB.print("Selected ");
-            SerialUSB.println(modeNames[ledMode]);
-            SerialUSB.println();
-            return;
+        if (incomingByte > 0){
+            if (incomingByte>=48&&incomingByte<=51) {
+                ledMode = incomingByte-48;
+                SerialUSB.print("Selected ");
+                SerialUSB.println(modeNames[ledMode]);
+                SerialUSB.println();
+                return;
+            }
+            else SerialUSB.println("Please enter a valid value.");
         }
-        else if (incomingByte > 0) { SerialUSB.println("Please enter a valid value."); }
     }
 }
 
 String inString = "";    // string to hold input
+bool start=0;
+// Converts incoming string chars to a byte
 int parseByte(){
     while (true) {
-    int incomingByte = SerialUSB.read();
-    if (incomingByte > 0) {
-        // Parse input
-        //SerialUSB.println(incomingByte);
-        if (isDigit(incomingByte)) {
-          // convert the incoming byte to a char and add it to the string:
-          inString += (char)incomingByte;
+        int incomingByte = SerialUSB.read();
+        if (incomingByte > 0) {
+            start=1;
+            // Parse input
+            if (isDigit(incomingByte)) {
+              // convert the incoming byte to a char and add it to the string:
+              inString += (char)incomingByte;
+            }
         }
-        // if you get a newline, print the string, then the string's value:
-        if (incomingByte == '\n') {
-          int value = inString.toInt();
-          //SerialUSB.println(value);
-          if (value >= 0 && value <= 255) { return value; }
-          else SerialUSB.println("Please enter a valid value.");
-          // clear the string for new input:
-          inString = "";
+        // Convert to byte after receiving block
+        if (incomingByte <= 0 && start == 1) {
+            int value = inString.toInt();
+            inString = "";
+            if (value >= 0 && value <= 255) { start=0; return value; }
+            else { start = 0; SerialUSB.print(value); SerialUSB.println(" is invalid. Please enter a valid value."); }
         }
-    }
     }
 }
 
@@ -364,47 +366,41 @@ void customMenu(){
     }
 }
 
-byte step;
 void mainmenu() {
+    printBlock(1);
     while(true){
         int incomingByte = SerialUSB.read();
         effects(5, 0);
-        if (step == 0) {
-            printBlock(1);
+        if (isDigit(incomingByte)){
+            switch(incomingByte-48){
+                case(0):
+                    SerialUSB.println("Settings saved! Exiting...");
+                    printBlock(0);
+                    pm = millis(); // Reset idle counter post-config
+                    return;
+                    break;
+                case(2):
+                    ledMenu();
+                    printBlock(1);
+                    break;
+                case(3):
+                    brightMenu();
+                    printBlock(1);
+                    break;
+                case(4):
+                    customMenu();
+                    printBlock(1);
+                    break;
+            }
         }
-        step = 1;
-        incomingByte = SerialUSB.read();
-        // Exit
-        switch(incomingByte-48){
-            case(0):
-                SerialUSB.println("Settings saved! Exiting...");
-                printBlock(0);
-                step = 0;
-                pm = millis(); // Reset idle counter post-config
-                return;
-                break;
-            case(2):
-                ledMenu();
-                printBlock(1);
-                break;
-            case(3):
-                brightMenu();
-                printBlock(1);
-                break;
-            case(4):
-                customMenu();
-                printBlock(1);
-                break;
-        }
-        //if (incomingByte > 0 && incomingByte != 48) printBlock(1);
     }
 }
 
 bool set;
 unsigned long remapMillis;
 void serialCheck() {
-    // Check for serial connection every 10ms
-    if ((millis() - remapMillis) > 10){
+    // Check for serial connection every 1s
+    if ((millis() - remapMillis) > 1000){
         // If the serial monitor is opened, greet the user.
         if (SerialUSB && set == 0) { printBlock(0); set=1; }
         // If closed, reset greet message.

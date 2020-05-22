@@ -1,19 +1,3 @@
-/*
-This is a complete rewrite of the firmware intended
-for ALL PC keypads. The main goals are as follows:
-
-- Replace the neopixel and dotstar libraries with
-FastLED as it is SIGNIFICANTLY faster.
-- Add a HAL for managing inputs from different
-methods like direct, matrix, and touch.
-- Generally reduce size and increase efficiency.
-
-Smaller feature goals are:
-- Add idle mode
-- Buffered LED effects for easier transitions
-
-*/
-
 // Libraries
 #include <Arduino.h>
 #include <Adafruit_FreeTouch.h>
@@ -41,7 +25,7 @@ bool lastPressed[numkeys+1];
 byte b = 127;
 byte bMax = 255;
 
-byte LEDmode = 3;
+byte ledMode = 2;
 byte effectSpeed = 10;
 
 // Colors for custom LED mode
@@ -180,7 +164,6 @@ void rbFade(){
 }
 
 // Custom colors
-// Red:0, Orange:32, Yellow:64, Green:96, Aqua:128, Blue:160, Purple:192, Pink:224
 void custom(){
     for(int i = 0; i < numkeys; i++) {
         byte z = gridMap[i];
@@ -217,11 +200,11 @@ void bps(){
 }
 
 unsigned long effectMillis;
-void effects(byte speed) {
+void effects(byte speed, byte MODE) {
     // All LED modes should go here for universal speed control
     if ((millis() - effectMillis) > speed){
         // Select LED mode
-        switch(LEDmode){
+        switch(MODE){
             case 0:
                 wheel(); break;
             case 1:
@@ -254,40 +237,195 @@ void speedCheck() {
 }
 
 // Menu text
-const String greet="Press 0 to enter the main menu.";
+const String greet[]={
+    "Press 0 to enter the configurator.",
+    "(Keys on the keypad are disabled while the configurator is open.)"
+};
 const String menu[]={
-    "Press 0 to enter the remapper.",
-    "Press 1 to set the LED mode.",
-    "Press 2 to set the brightness.",
-    "Press 3 to set the custom colors."
+    "Welcome to the configurator! Enter:",
+    "0 to save and exit",
+    "1 to remap keys",
+    "2 to set the LED mode",
+    "3 to set the brightness",
+    "4 to set the custom colors"
+};
+const String LEDmodes[]={
+    "Select an LED mode. Enter:",
+    "0 for Cycle",
+    "1 for Reactive",
+    "2 for Custom",
+    "3 for BPS"
+};
+const String custExp[]={
+    "Please enter a color value for the respective key.",
+    "Colors are expressed as a 0-255 value, where:",
+    "red=0, orange=32, yellow=64, green=96",
+    "aqua=128, blue=160, purple=192, and pink=224"
 };
 
-byte step;
-void mainmenu() {
-    int incomingByte = SerialUSB.read();
-    step = 0;
-    if (incomingByte == 48) {
-        while(true){
-            effects(5);
-            if (step == 0) for (byte x=0;x<4;x++) SerialUSB.println(menu[x]);
-            step = 1;
-            incomingByte = SerialUSB.read();
-            //SerialUSB.println(greet);
-            if (incomingByte == 120) return;
+void printBlock(byte block) {
+    switch(block){
+        // Greeter message
+        case 0:
+            for (byte x=0;x<2;x++) SerialUSB.println(greet[x]);
+            break;
+        case 1:
+            for (byte x=0;x<6;x++) SerialUSB.println(menu[x]);
+            break;
+        case 2:
+            for (byte x=0;x<5;x++) SerialUSB.println(LEDmodes[x]);
+            break;
+        case 3:
+            SerialUSB.println("Enter a brightness vaule between 0 and 255.");
+            SerialUSB.print("Current value: ");
+            SerialUSB.print(bMax);
+            break;
+        case 4:
+            for (byte x=0;x<4;x++) SerialUSB.println(custExp[x]);
+            SerialUSB.print("Current values: ");
+            for (byte x=0;x<numkeys;x++) {
+                SerialUSB.print(custColor[x]);
+                if (x != numkeys-1) SerialUSB.print(", ");
+            }
+            break;
+    }
+    // Add extra line break
+    SerialUSB.println();
+}
+
+const String modeNames[]={ "Cycle", "Reactive", "Custom", "BPS" };
+void ledMenu() {
+    printBlock(2);
+    while(true){
+        int incomingByte = SerialUSB.read();
+        if (incomingByte>=48 && incomingByte<=57) {
+            ledMode = incomingByte-48;
+            SerialUSB.print("Selected ");
+            SerialUSB.println(modeNames[ledMode]);
+            SerialUSB.println();
+            return;
         }
+        else if (incomingByte > 0) { SerialUSB.println("Please enter a valid value."); }
     }
 }
 
+String inString = "";    // string to hold input
+int parseByte(){
+    while (true) {
+    int incomingByte = SerialUSB.read();
+    if (incomingByte > 0) {
+        // Parse input
+        //SerialUSB.println(incomingByte);
+        if (isDigit(incomingByte)) {
+          // convert the incoming byte to a char and add it to the string:
+          inString += (char)incomingByte;
+        }
+        // if you get a newline, print the string, then the string's value:
+        if (incomingByte == '\n') {
+          int value = inString.toInt();
+          //SerialUSB.println(value);
+          if (value >= 0 && value <= 255) { return value; }
+          else SerialUSB.println("Please enter a valid value.");
+          // clear the string for new input:
+          inString = "";
+        }
+    }
+    }
+}
+
+void brightMenu(){
+    printBlock(3);
+    while(true){
+        bMax = parseByte();
+        SerialUSB.print("Entered value: ");
+        SerialUSB.println(bMax);
+        SerialUSB.println();
+        return;
+    }
+}
+
+void customMenu(){
+    printBlock(4);
+    while(true){
+        for(byte x=0;x<numkeys;x++){
+            SerialUSB.print("Color for key ");
+            SerialUSB.print(x+1);
+            SerialUSB.print(": ");
+            byte color = parseByte();
+            SerialUSB.println(color);
+            custColor[x] = color;
+            effects(10,2);
+        }
+        SerialUSB.println();
+        // Give user a second to see new color.
+        // Confirmation would make more sense here.
+        delay(1000);
+        return;
+    }
+}
+
+byte step;
+void mainmenu() {
+    while(true){
+        int incomingByte = SerialUSB.read();
+        effects(5, 0);
+        if (step == 0) {
+            printBlock(1);
+        }
+        step = 1;
+        incomingByte = SerialUSB.read();
+        // Exit
+        switch(incomingByte-48){
+            case(0):
+                SerialUSB.println("Settings saved! Exiting...");
+                printBlock(0);
+                step = 0;
+                pm = millis(); // Reset idle counter post-config
+                return;
+                break;
+            case(2):
+                ledMenu();
+                printBlock(1);
+                break;
+            case(3):
+                brightMenu();
+                printBlock(1);
+                break;
+            case(4):
+                customMenu();
+                printBlock(1);
+                break;
+        }
+        //if (incomingByte > 0 && incomingByte != 48) printBlock(1);
+    }
+}
+
+bool set;
 unsigned long remapMillis;
 void serialCheck() {
+    // Check for serial connection every 10ms
     if ((millis() - remapMillis) > 10){
-        if (SerialUSB.available() > 0) mainmenu();
+        // If the serial monitor is opened, greet the user.
+        if (SerialUSB && set == 0) { printBlock(0); set=1; }
+        // If closed, reset greet message.
+        if (!SerialUSB) set = 0;
+
+        // Check incoming character if exists
+        if (SerialUSB.available() > 0) {
+            byte incomingByte = SerialUSB.read();
+            // If it's not 0, repeat the greet message
+            if (incomingByte != 48) printBlock(0);
+            // Otherwise, enter the menu.
+            else mainmenu();
+        }
+
         remapMillis = millis();
     }
 }
 
 void idle(){
     if ((millis() - pm) > 60000) bMax = 0;
+    // Restore from EEPROM value here
     else bMax = 255;
 }
 
@@ -297,9 +435,9 @@ void loop() {
     // Convert key presses to actual keyboard keys
     keyboard();
     // Make lights happen
-    effects(10);
+    effects(10, ledMode);
     idle();
     // Debug check for loops per second
-    speedCheck();
-    //serialCheck();
+    //speedCheck();
+    serialCheck();
 }

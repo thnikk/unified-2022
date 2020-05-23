@@ -11,12 +11,11 @@
 Bounce * bounce = new Bounce[numkeys+1];
 Adafruit_FreeTouch qt = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 CRGBArray<numkeys> leds;
-//CRGB ds[1];
 
 const byte pins[] = { 12, 11 };
 uint8_t mapping[][2] = {
 {122,120},
-{177,KEY_F13}
+{99,118}
 };
 
 bool pressed[numkeys+1];
@@ -44,6 +43,58 @@ unsigned long pm;
 
 const byte gridMap[] = {0, 1, 3, 2};
 
+void eepromInit(){
+    // If first boot after programming
+    if (!EEPROM.isValid()) {
+        // Assign default values
+        EEPROM.write(1, bMax);
+        b = bMax;
+        EEPROM.write(2, ledMode);
+        for (byte x=0; x<numkeys; x++) {
+            EEPROM.write(3+x, custColor[x]);
+        }
+        // Mapping
+        for (byte y=0; y<2; y++) {
+            for (byte x=0; x<numkeys; x++) {
+                int address=20+(y*30)+x;
+                EEPROM.write(address, mapping[y][x]);
+            }
+        }
+        // Write values
+        EEPROM.commit();
+    }
+    // Otherwise, restore values
+    else {
+        bMax = EEPROM.read(1);
+        ledMode = EEPROM.read(2);
+        for (byte x=0;x<numkeys;x++){
+            custColor[x] = EEPROM.read(3+x);
+        }
+        for (byte y=0; y<2; y++) {
+            for (byte x=0; x<numkeys; x++) {
+                int address=20+(y*30)+x;
+                mapping[y][x] = EEPROM.read(address);
+            }
+        }
+    }
+}
+
+void eepromUpdate(){
+    if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
+    if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
+    for (byte x=0; x<numkeys; x++) {
+        if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
+    }
+    // Mapping
+    for (byte y=0; y<2; y++) {
+        for (byte x=0; x<numkeys; x++) {
+            int address=20+(y*30)+x;
+            if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
+        }
+    }
+    EEPROM.commit();
+}
+
 void setup() {
     // Set the serial baudrate
     SerialUSB.begin(9600);
@@ -62,6 +113,9 @@ void setup() {
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);
     }
+
+    // Initialize EEPROM
+    eepromInit();
 
     // Start freetouch for side button
     qt.begin();
@@ -102,9 +156,10 @@ void keyboard() {
             if (!pressed[x]) bpsCount++;
             pm = millis();
             uint8_t key = mapping[!pressed[numkeys]][x];
+            uint8_t unKey = mapping[pressed[numkeys]][x];
 
             // Check press state and press/release key
-            switch(key){
+            /*switch(key){
                 // Key exceptions need to go here for NKROKeyboard
                 case 177:
                     if (!pressed[x]) NKROKeyboard.press(KEY_ESC);
@@ -118,7 +173,10 @@ void keyboard() {
                     if (!pressed[x]) NKROKeyboard.press(key);
                     if (pressed[x]) NKROKeyboard.release(key);
                     break;
-            }
+            }*/
+            if (!pressed[x]) NKROKeyboard.press(key);
+            if (pressed[x]) NKROKeyboard.release(key);
+            NKROKeyboard.release(unKey);
             // Save last pressed state to buffer
             lastPressed[x] = pressed[x];
         }
@@ -262,6 +320,10 @@ const String custExp[]={
     "red=0, orange=32, yellow=64, green=96",
     "aqua=128, blue=160, purple=192, and pink=224"
 };
+const String remapExp[]={
+    "Please enter",
+    ""
+};
 
 void printBlock(byte block) {
     switch(block){
@@ -286,6 +348,15 @@ void printBlock(byte block) {
             for (byte x=0;x<numkeys;x++) {
                 SerialUSB.print(custColor[x]);
                 if (x != numkeys-1) SerialUSB.print(", ");
+            }
+            break;
+        case 5:
+            for (byte y=0;y<2;y++) {
+                SerialUSB.print("Layer ");
+                SerialUSB.print(y+1);
+                SerialUSB.print(": ");
+                for (byte x=0;x<numkeys;x++) { SerialUSB.print(char(mapping[y][x])); if (x<numkeys-1) SerialUSB.print(", "); }
+                SerialUSB.println();
             }
             break;
     }
@@ -366,6 +437,62 @@ void customMenu(){
     }
 }
 
+void remapMenu(){
+
+    // Main loop
+    while(true){
+    byte layer;
+    SerialUSB.println("Which layer would you like to remap?");
+    SerialUSB.println("0 to exit");
+    SerialUSB.println("1 to remap layer 1");
+    SerialUSB.println("2 to remap layer 2");
+    printBlock(5);
+
+    // Select layer
+    bool layerCheck = 0;
+    while(layerCheck == 0){
+        int incomingByte = SerialUSB.read();
+        if (incomingByte > 0){
+            if (incomingByte>=48&&incomingByte<=50) {
+                layer = incomingByte-48;
+                if (layer == 0) layerCheck = 1; // Return before printing if layer is 0
+                else {
+                    SerialUSB.print("Layer ");
+                    SerialUSB.print(layer);
+                    SerialUSB.print(": ");
+                    layerCheck = 1;
+                }
+            }
+            else SerialUSB.println("Please enter a valid value.");
+        }
+    }
+
+    // Exit if user inputs 0
+    if (layer == 0) return;
+
+    // Remap selected layer
+    for(byte x=0;x<numkeys;x++){
+        bool mapCheck = 0;
+        while(mapCheck == 0){
+            int incomingByte = SerialUSB.read();
+            if (incomingByte>=32&&incomingByte<=126) {
+                byte key = incomingByte;
+                SerialUSB.print(char(key));
+                // Subtract 1 because array is 0 indexed
+                mapping[layer-1][x] = key;
+                // Separate by comma if not last value
+                if (x<numkeys-1) SerialUSB.print(", ");
+                // Otherwise, create newline
+                else SerialUSB.println();
+                mapCheck = 1;
+            }
+            else if(incomingByte > 0) SerialUSB.println("Please enter a valid value.");
+        }
+    }
+    SerialUSB.println();
+    }
+}
+
 void mainmenu() {
     printBlock(1);
     while(true){
@@ -375,9 +502,14 @@ void mainmenu() {
             switch(incomingByte-48){
                 case(0):
                     SerialUSB.println("Settings saved! Exiting...");
+                    eepromUpdate();
                     printBlock(0);
                     pm = millis(); // Reset idle counter post-config
                     return;
+                    break;
+                case(1):
+                    remapMenu();
+                    printBlock(1);
                     break;
                 case(2):
                     ledMenu();
@@ -390,6 +522,9 @@ void mainmenu() {
                 case(4):
                     customMenu();
                     printBlock(1);
+                    break;
+                default:
+                    SerialUSB.println("Please enter a valid value.");
                     break;
             }
         }
@@ -422,7 +557,7 @@ void serialCheck() {
 void idle(){
     if ((millis() - pm) > 60000) bMax = 0;
     // Restore from EEPROM value here
-    else bMax = 255;
+    else bMax = EEPROM.read(1);
 }
 
 void loop() {

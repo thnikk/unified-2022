@@ -15,7 +15,7 @@ CRGBArray<numkeys> leds;
 const byte pins[] = { 12, 11 };
 uint8_t mapping[][2] = {
 {122,120},
-{99,118}
+{KEY_VOLUME_UP,KEY_VOLUME_DOWN}
 };
 
 bool pressed[numkeys+1];
@@ -42,6 +42,31 @@ int touchThreshold = 500;
 unsigned long pm;
 
 const byte gridMap[] = {0, 1, 3, 2};
+
+
+// Remapper
+const String friendlyKeys[] = {
+    "LEFT_CTRL", "LEFT_SHIFT", "LEFT_ALT", "LEFT_GUI", "RIGHT_CTRL", "RIGHT_SHIFT",
+    "RIGHT_ALT", "RIGHT_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
+    "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
+    "F21", "F22", "F23", "F24", "ENTER", "BACKSPACE", "TAB", "PRINT", "PAUSE", "INSERT",
+    "HOME", "PAGE_UP", "DELETE", "END", "PAGE_DOWN", "RIGHT", "LEFT", "DOWN", "UP",
+    "PAD_DIV", "PAD_MULT", "PAD_SUB", "PAD_ADD", "PAD_ENTER", "PAD_1", "PAD_2", "PAD_3",
+    "PAD_4", "PAD_5", "PAD_6", "PAD_7", "PAD_8", "PAD_9", "PAD_0", "PAD_DOT", "MENU",
+    "VOL_MUTE", "VOL_UP", "VOL_DOWN"
+};
+const uint8_t keycodes[] = {
+    KEY_LEFT_CTRL, KEY_LEFT_SHIFT, KEY_LEFT_ALT, KEY_LEFT_GUI, KEY_RIGHT_CTRL,
+    KEY_RIGHT_SHIFT, KEY_RIGHT_ALT, KEY_RIGHT_GUI, KEY_ESC, KEY_F1, KEY_F2, KEY_F3,
+    KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12, KEY_F13,
+    KEY_F14, KEY_F15, KEY_F16, KEY_F17, KEY_F18, KEY_F19, KEY_F20, KEY_F21, KEY_F22,
+    KEY_F23, KEY_F24, KEY_ENTER, KEY_BACKSPACE, KEY_TAB, KEY_PRINT, KEY_PAUSE,
+    KEY_INSERT, KEY_HOME, KEY_PAGE_UP, KEY_DELETE, KEY_END, KEY_PAGE_DOWN, KEY_RIGHT,
+    KEY_LEFT, KEY_DOWN, KEY_UP, KEYPAD_DIVIDE, KEYPAD_MULTIPLY, KEYPAD_SUBTRACT,
+    KEYPAD_ADD, KEYPAD_ENTER, KEYPAD_1, KEYPAD_2, KEYPAD_3, KEYPAD_4, KEYPAD_5, KEYPAD_6,
+    KEYPAD_7, KEYPAD_8, KEYPAD_9, KEYPAD_0, KEYPAD_DOT, KEY_MENU, KEY_VOLUME_MUTE,
+    KEY_VOLUME_UP, KEY_VOLUME_DOWN
+};
 
 void eepromInit(){
     // If first boot after programming
@@ -159,24 +184,150 @@ void keyboard() {
             uint8_t unKey = mapping[pressed[numkeys]][x];
 
             // Check press state and press/release key
-            /*switch(key){
+            switch(key){
                 // Key exceptions need to go here for NKROKeyboard
-                case 177:
-                    if (!pressed[x]) NKROKeyboard.press(KEY_ESC);
-                    if (pressed[x]) NKROKeyboard.release(KEY_ESC);
-                    break;
-                case KEY_F13:
-                    if (!pressed[x]) NKROKeyboard.press(KEY_F13);
-                    if (pressed[x]) NKROKeyboard.release(KEY_F13);
-                    break;
-                default:
-                    if (!pressed[x]) NKROKeyboard.press(key);
-                    if (pressed[x]) NKROKeyboard.release(key);
-                    break;
-            }*/
-            if (!pressed[x]) NKROKeyboard.press(key);
-            if (pressed[x]) NKROKeyboard.release(key);
-            NKROKeyboard.release(unKey);
+                case KEY_ESC: if (!pressed[x]) NKROKeyboard.press(KEY_ESC); if (pressed[x]) NKROKeyboard.release(KEY_ESC); break;
+                case KEY_F1: if (!pressed[x]) NKROKeyboard.press(KEY_F1); if (pressed[x]) NKROKeyboard.release(KEY_F1); break;
+                case KEY_F2: if (!pressed[x]) NKROKeyboard.press(KEY_F2); if (pressed[x]) NKROKeyboard.release(KEY_F2); break;
+                case KEY_F3: if (!pressed[x]) NKROKeyboard.press(KEY_F3); if (pressed[x]) NKROKeyboard.release(KEY_F3); break;
+                case KEY_F4: if (!pressed[x]) NKROKeyboard.press(KEY_F4); if (pressed[x]) NKROKeyboard.release(KEY_F4); break;
+                case KEY_F5: if (!pressed[x]) NKROKeyboard.press(KEY_F5); if (pressed[x]) NKROKeyboard.release(KEY_F5); break;
+                case KEY_F6: if (!pressed[x]) NKROKeyboard.press(KEY_F6); if (pressed[x]) NKROKeyboard.release(KEY_F6); break;
+                case KEY_F7: if (!pressed[x]) NKROKeyboard.press(KEY_F7); if (pressed[x]) NKROKeyboard.release(KEY_F7); break;
+                case KEY_F8: if (!pressed[x]) NKROKeyboard.press(KEY_F8); if (pressed[x]) NKROKeyboard.release(KEY_F8); break;
+                case KEY_F9: if (!pressed[x]) NKROKeyboard.press(KEY_F9); if (pressed[x]) NKROKeyboard.release(KEY_F9); break;
+                case KEY_F10: if (!pressed[x]) NKROKeyboard.press(KEY_F10); if (pressed[x]) NKROKeyboard.release(KEY_F10); break;
+                case KEY_F11: if (!pressed[x]) NKROKeyboard.press(KEY_F11); if (pressed[x]) NKROKeyboard.release(KEY_F11); break;
+                case KEY_F12: if (!pressed[x]) NKROKeyboard.press(KEY_F12); if (pressed[x]) NKROKeyboard.release(KEY_F12); break;
+                case KEY_F13: if (!pressed[x]) NKROKeyboard.press(KEY_F13); if (pressed[x]) NKROKeyboard.release(KEY_F13); break;
+                case KEY_F14: if (!pressed[x]) NKROKeyboard.press(KEY_F14); if (pressed[x]) NKROKeyboard.release(KEY_F14); break;
+                case KEY_F15: if (!pressed[x]) NKROKeyboard.press(KEY_F15); if (pressed[x]) NKROKeyboard.release(KEY_F15); break;
+                case KEY_F16: if (!pressed[x]) NKROKeyboard.press(KEY_F16); if (pressed[x]) NKROKeyboard.release(KEY_F16); break;
+                case KEY_F17: if (!pressed[x]) NKROKeyboard.press(KEY_F17); if (pressed[x]) NKROKeyboard.release(KEY_F17); break;
+                case KEY_F18: if (!pressed[x]) NKROKeyboard.press(KEY_F18); if (pressed[x]) NKROKeyboard.release(KEY_F18); break;
+                case KEY_F19: if (!pressed[x]) NKROKeyboard.press(KEY_F19); if (pressed[x]) NKROKeyboard.release(KEY_F19); break;
+                case KEY_F20: if (!pressed[x]) NKROKeyboard.press(KEY_F20); if (pressed[x]) NKROKeyboard.release(KEY_F20); break;
+                case KEY_F21: if (!pressed[x]) NKROKeyboard.press(KEY_F21); if (pressed[x]) NKROKeyboard.release(KEY_F21); break;
+                case KEY_F22: if (!pressed[x]) NKROKeyboard.press(KEY_F22); if (pressed[x]) NKROKeyboard.release(KEY_F22); break;
+                case KEY_F23: if (!pressed[x]) NKROKeyboard.press(KEY_F23); if (pressed[x]) NKROKeyboard.release(KEY_F23); break;
+                case KEY_F24: if (!pressed[x]) NKROKeyboard.press(KEY_F24); if (pressed[x]) NKROKeyboard.release(KEY_F24); break;
+                case KEY_ENTER: if (!pressed[x]) NKROKeyboard.press(KEY_ENTER); if (pressed[x]) NKROKeyboard.release(KEY_ENTER); break;
+                case KEY_BACKSPACE: if (!pressed[x]) NKROKeyboard.press(KEY_BACKSPACE); if (pressed[x]) NKROKeyboard.release(KEY_BACKSPACE); break;
+                case KEY_TAB: if (!pressed[x]) NKROKeyboard.press(KEY_TAB); if (pressed[x]) NKROKeyboard.release(KEY_TAB); break;
+                case KEY_PRINT: if (!pressed[x]) NKROKeyboard.press(KEY_PRINT); if (pressed[x]) NKROKeyboard.release(KEY_PRINT); break;
+                case KEY_PAUSE: if (!pressed[x]) NKROKeyboard.press(KEY_PAUSE); if (pressed[x]) NKROKeyboard.release(KEY_PAUSE); break;
+                case KEY_INSERT: if (!pressed[x]) NKROKeyboard.press(KEY_INSERT); if (pressed[x]) NKROKeyboard.release(KEY_INSERT); break;
+                case KEY_HOME: if (!pressed[x]) NKROKeyboard.press(KEY_HOME); if (pressed[x]) NKROKeyboard.release(KEY_HOME); break;
+                case KEY_PAGE_UP: if (!pressed[x]) NKROKeyboard.press(KEY_PAGE_UP); if (pressed[x]) NKROKeyboard.release(KEY_PAGE_UP); break;
+                case KEY_DELETE: if (!pressed[x]) NKROKeyboard.press(KEY_DELETE); if (pressed[x]) NKROKeyboard.release(KEY_DELETE); break;
+                case KEY_END: if (!pressed[x]) NKROKeyboard.press(KEY_END); if (pressed[x]) NKROKeyboard.release(KEY_END); break;
+                case KEY_PAGE_DOWN: if (!pressed[x]) NKROKeyboard.press(KEY_PAGE_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_PAGE_DOWN); break;
+                case KEY_RIGHT: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT); break;
+                case KEY_LEFT: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT); break;
+                case KEY_DOWN: if (!pressed[x]) NKROKeyboard.press(KEY_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_DOWN); break;
+                case KEY_UP: if (!pressed[x]) NKROKeyboard.press(KEY_UP); if (pressed[x]) NKROKeyboard.release(KEY_UP); break;
+                case KEYPAD_DIVIDE: if (!pressed[x]) NKROKeyboard.press(KEYPAD_DIVIDE); if (pressed[x]) NKROKeyboard.release(KEYPAD_DIVIDE); break;
+                case KEYPAD_MULTIPLY: if (!pressed[x]) NKROKeyboard.press(KEYPAD_MULTIPLY); if (pressed[x]) NKROKeyboard.release(KEYPAD_MULTIPLY); break;
+                case KEYPAD_SUBTRACT: if (!pressed[x]) NKROKeyboard.press(KEYPAD_SUBTRACT); if (pressed[x]) NKROKeyboard.release(KEYPAD_SUBTRACT); break;
+                case KEYPAD_ADD: if (!pressed[x]) NKROKeyboard.press(KEYPAD_ADD); if (pressed[x]) NKROKeyboard.release(KEYPAD_ADD); break;
+                case KEYPAD_ENTER: if (!pressed[x]) NKROKeyboard.press(KEYPAD_ENTER); if (pressed[x]) NKROKeyboard.release(KEYPAD_ENTER); break;
+                case KEYPAD_1: if (!pressed[x]) NKROKeyboard.press(KEYPAD_1); if (pressed[x]) NKROKeyboard.release(KEYPAD_1); break;
+                case KEYPAD_2: if (!pressed[x]) NKROKeyboard.press(KEYPAD_2); if (pressed[x]) NKROKeyboard.release(KEYPAD_2); break;
+                case KEYPAD_3: if (!pressed[x]) NKROKeyboard.press(KEYPAD_3); if (pressed[x]) NKROKeyboard.release(KEYPAD_3); break;
+                case KEYPAD_4: if (!pressed[x]) NKROKeyboard.press(KEYPAD_4); if (pressed[x]) NKROKeyboard.release(KEYPAD_4); break;
+                case KEYPAD_5: if (!pressed[x]) NKROKeyboard.press(KEYPAD_5); if (pressed[x]) NKROKeyboard.release(KEYPAD_5); break;
+                case KEYPAD_6: if (!pressed[x]) NKROKeyboard.press(KEYPAD_6); if (pressed[x]) NKROKeyboard.release(KEYPAD_6); break;
+                case KEYPAD_7: if (!pressed[x]) NKROKeyboard.press(KEYPAD_7); if (pressed[x]) NKROKeyboard.release(KEYPAD_7); break;
+                case KEYPAD_8: if (!pressed[x]) NKROKeyboard.press(KEYPAD_8); if (pressed[x]) NKROKeyboard.release(KEYPAD_8); break;
+                case KEYPAD_9: if (!pressed[x]) NKROKeyboard.press(KEYPAD_9); if (pressed[x]) NKROKeyboard.release(KEYPAD_9); break;
+                case KEYPAD_0: if (!pressed[x]) NKROKeyboard.press(KEYPAD_0); if (pressed[x]) NKROKeyboard.release(KEYPAD_0); break;
+                case KEYPAD_DOT: if (!pressed[x]) NKROKeyboard.press(KEYPAD_DOT); if (pressed[x]) NKROKeyboard.release(KEYPAD_DOT); break;
+                case KEY_MENU: if (!pressed[x]) NKROKeyboard.press(KEY_MENU); if (pressed[x]) NKROKeyboard.release(KEY_MENU); break;
+                case KEY_VOLUME_MUTE: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_MUTE); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_MUTE); break;
+                case KEY_VOLUME_UP: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_UP); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_UP); break;
+                case KEY_VOLUME_DOWN: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_DOWN); break;
+                case KEY_LEFT_CTRL: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_CTRL); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_CTRL); break;
+                case KEY_LEFT_SHIFT: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_SHIFT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_SHIFT); break;
+                case KEY_LEFT_ALT: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_ALT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_ALT); break;
+                case KEY_LEFT_GUI: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_GUI); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_GUI); break;
+                case KEY_RIGHT_CTRL: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_CTRL); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_CTRL); break;
+                case KEY_RIGHT_SHIFT: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_SHIFT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_SHIFT); break;
+                case KEY_RIGHT_ALT: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_ALT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_ALT); break;
+                case KEY_RIGHT_GUI: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_GUI); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_GUI); break;
+                default: if (!pressed[x]) NKROKeyboard.press(key); if (pressed[x]) NKROKeyboard.release(key); break;
+            }
+            // Same for unkey
+            switch(unKey){
+                case KEY_ESC: NKROKeyboard.release(KEY_ESC); break;
+                case KEY_F1: NKROKeyboard.release(KEY_F1); break;
+                case KEY_F2: NKROKeyboard.release(KEY_F2); break;
+                case KEY_F3: NKROKeyboard.release(KEY_F3); break;
+                case KEY_F4: NKROKeyboard.release(KEY_F4); break;
+                case KEY_F5: NKROKeyboard.release(KEY_F5); break;
+                case KEY_F6: NKROKeyboard.release(KEY_F6); break;
+                case KEY_F7: NKROKeyboard.release(KEY_F7); break;
+                case KEY_F8: NKROKeyboard.release(KEY_F8); break;
+                case KEY_F9: NKROKeyboard.release(KEY_F9); break;
+                case KEY_F10: NKROKeyboard.release(KEY_F10); break;
+                case KEY_F11: NKROKeyboard.release(KEY_F11); break;
+                case KEY_F12: NKROKeyboard.release(KEY_F12); break;
+                case KEY_F13: NKROKeyboard.release(KEY_F13); break;
+                case KEY_F14: NKROKeyboard.release(KEY_F14); break;
+                case KEY_F15: NKROKeyboard.release(KEY_F15); break;
+                case KEY_F16: NKROKeyboard.release(KEY_F16); break;
+                case KEY_F17: NKROKeyboard.release(KEY_F17); break;
+                case KEY_F18: NKROKeyboard.release(KEY_F18); break;
+                case KEY_F19: NKROKeyboard.release(KEY_F19); break;
+                case KEY_F20: NKROKeyboard.release(KEY_F20); break;
+                case KEY_F21: NKROKeyboard.release(KEY_F21); break;
+                case KEY_F22: NKROKeyboard.release(KEY_F22); break;
+                case KEY_F23: NKROKeyboard.release(KEY_F23); break;
+                case KEY_F24: NKROKeyboard.release(KEY_F24); break;
+                case KEY_ENTER: NKROKeyboard.release(KEY_ENTER); break;
+                case KEY_BACKSPACE: NKROKeyboard.release(KEY_BACKSPACE); break;
+                case KEY_TAB: NKROKeyboard.release(KEY_TAB); break;
+                case KEY_PRINT: NKROKeyboard.release(KEY_PRINT); break;
+                case KEY_PAUSE: NKROKeyboard.release(KEY_PAUSE); break;
+                case KEY_INSERT: NKROKeyboard.release(KEY_INSERT); break;
+                case KEY_HOME: NKROKeyboard.release(KEY_HOME); break;
+                case KEY_PAGE_UP: NKROKeyboard.release(KEY_PAGE_UP); break;
+                case KEY_DELETE: NKROKeyboard.release(KEY_DELETE); break;
+                case KEY_END: NKROKeyboard.release(KEY_END); break;
+                case KEY_PAGE_DOWN: NKROKeyboard.release(KEY_PAGE_DOWN); break;
+                case KEY_RIGHT: NKROKeyboard.release(KEY_RIGHT); break;
+                case KEY_LEFT: NKROKeyboard.release(KEY_LEFT); break;
+                case KEY_DOWN: NKROKeyboard.release(KEY_DOWN); break;
+                case KEY_UP: NKROKeyboard.release(KEY_UP); break;
+                case KEYPAD_DIVIDE: NKROKeyboard.release(KEYPAD_DIVIDE); break;
+                case KEYPAD_MULTIPLY: NKROKeyboard.release(KEYPAD_MULTIPLY); break;
+                case KEYPAD_SUBTRACT: NKROKeyboard.release(KEYPAD_SUBTRACT); break;
+                case KEYPAD_ADD: NKROKeyboard.release(KEYPAD_ADD); break;
+                case KEYPAD_ENTER: NKROKeyboard.release(KEYPAD_ENTER); break;
+                case KEYPAD_1: NKROKeyboard.release(KEYPAD_1); break;
+                case KEYPAD_2: NKROKeyboard.release(KEYPAD_2); break;
+                case KEYPAD_3: NKROKeyboard.release(KEYPAD_3); break;
+                case KEYPAD_4: NKROKeyboard.release(KEYPAD_4); break;
+                case KEYPAD_5: NKROKeyboard.release(KEYPAD_5); break;
+                case KEYPAD_6: NKROKeyboard.release(KEYPAD_6); break;
+                case KEYPAD_7: NKROKeyboard.release(KEYPAD_7); break;
+                case KEYPAD_8: NKROKeyboard.release(KEYPAD_8); break;
+                case KEYPAD_9: NKROKeyboard.release(KEYPAD_9); break;
+                case KEYPAD_0: NKROKeyboard.release(KEYPAD_0); break;
+                case KEYPAD_DOT: NKROKeyboard.release(KEYPAD_DOT); break;
+                case KEY_MENU: NKROKeyboard.release(KEY_MENU); break;
+                case KEY_VOLUME_MUTE: NKROKeyboard.release(KEY_VOLUME_MUTE); break;
+                case KEY_VOLUME_UP: NKROKeyboard.release(KEY_VOLUME_UP); break;
+                case KEY_VOLUME_DOWN: NKROKeyboard.release(KEY_VOLUME_DOWN); break;
+                case KEY_LEFT_CTRL: NKROKeyboard.release(KEY_LEFT_CTRL); break;
+                case KEY_LEFT_SHIFT: NKROKeyboard.release(KEY_LEFT_SHIFT); break;
+                case KEY_LEFT_ALT: NKROKeyboard.release(KEY_LEFT_ALT); break;
+                case KEY_LEFT_GUI: NKROKeyboard.release(KEY_LEFT_GUI); break;
+                case KEY_RIGHT_CTRL: NKROKeyboard.release(KEY_RIGHT_CTRL); break;
+                case KEY_RIGHT_SHIFT: NKROKeyboard.release(KEY_RIGHT_SHIFT); break;
+                case KEY_RIGHT_ALT: NKROKeyboard.release(KEY_RIGHT_ALT); break;
+                case KEY_RIGHT_GUI: NKROKeyboard.release(KEY_RIGHT_GUI); break;
+                default: NKROKeyboard.release(unKey); break;
+            }
             // Save last pressed state to buffer
             lastPressed[x] = pressed[x];
         }
@@ -569,6 +720,6 @@ void loop() {
     effects(10, ledMode);
     idle();
     // Debug check for loops per second
-    //speedCheck();
+    speedCheck();
     serialCheck();
 }

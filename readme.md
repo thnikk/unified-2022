@@ -17,9 +17,6 @@ methods like direct, matrix, and touch.
 - [x] Fix remapper to allow for non-printable keys.
 - [x] Allow HID library to accept ASCII values instead of requiring names.
 
-## Outstanding bugs
-- [x] ~~Flicker on spacebar for SAMD-based 7k keypad~~
-    - ~~This is NOT present for AVR~~
-        - I wasted 2-3 hours debugging a bad LED.
-- [x] Fix borked configurator for AVR 7K
-    - [ ] Fix remapper table
+## Program size for AVR boards
+
+The biggest issue at the moment is that the FastLED library and the configurator code both take up a lot of program space. This is only an issue for the 7K keypad not using the newer SAMD21 mini, so I can either limit features for the older model or try to reduce code size wherever I can. Ideally there would be a dedicated configurator program (not Termite) that could receive a code from the keypad and display text so it doesn't need to be stored as a string on the keypad itself, so that may be the next project.

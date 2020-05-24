@@ -17,13 +17,15 @@ Bounce * bounce = new Bounce[numkeys+1];
 #endif
 CRGBArray<numkeys> leds;
 
+// These defines should move to a separate file for cleanup
 #ifdef AVR
-const byte pins[] = { 2, 3, 7, 9, 10, 11, 12, 4 };
+const uint8_t pins[] = { 2, 3, 7, 9, 10, 11, 12, 4 };
 #endif
 #ifdef TRINKETM0
-const byte pins[] = { 0, 2, 20, 19, 3 };
-#else
-const byte pins[] = { 12, 11, 10, 9, 6, 5, 0, 1 };
+const uint8_t pins[] = { 0, 2, 20, 19, 3 };
+#endif
+#ifdef SAMD21MINI
+const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, A3 };
 #endif
 
 #ifdef KM7
@@ -41,18 +43,18 @@ uint8_t mapping[][4] = {
 bool pressed[numkeys+1];
 bool lastPressed[numkeys+1];
 
-byte b = 127;
-byte bMax = 127;
+uint8_t b = 127;
+uint8_t bMax = 127;
 
-byte ledMode = 0;
-byte effectSpeed = 10;
+uint8_t ledMode = 0;
+uint8_t effectSpeed = 10;
 
 // Colors for custom LED mode
 // These are the initial values stored before changed through the remapper
-byte custColor[] = {224,192,224,192,224,192,224};
+uint8_t custColor[] = {224,192,224,192,224,192,224};
 
 // BPS
-byte bpsCount;
+uint8_t bpsCount;
 
 // FreeTouch
 int touchValue;
@@ -61,10 +63,10 @@ int touchThreshold = 500;
 // Millis timer for idle check
 unsigned long pm;
 
-const byte gridMap[] = {0,1,2,3,4,5,6};
+const uint8_t gridMap[] = {0,1,2,3,4,5,6};
 
 // Version (Update this value to update EEPROM for AVR boards)
-byte version = 1;
+uint8_t version = 2;
 
 // Remapper
 const String friendlyKeys[] = {
@@ -91,12 +93,12 @@ void eepromInit(){
         EEPROM.write(1, bMax);
         b = bMax;
         EEPROM.write(2, ledMode);
-        for (byte x=0; x<numkeys; x++) {
+        for (uint8_t x=0; x<numkeys; x++) {
             EEPROM.write(3+x, custColor[x]);
         }
         // Mapping
-        for (byte y=0; y<2; y++) {
-            for (byte x=0; x<numkeys; x++) {
+        for (uint8_t y=0; y<2; y++) {
+            for (uint8_t x=0; x<numkeys; x++) {
                 int address=20+(y*30)+x;
                 EEPROM.write(address, mapping[y][x]);
             }
@@ -110,11 +112,11 @@ void eepromInit(){
     else {
         bMax = EEPROM.read(1);
         ledMode = EEPROM.read(2);
-        for (byte x=0;x<numkeys;x++){
+        for (uint8_t x=0;x<numkeys;x++){
             custColor[x] = EEPROM.read(3+x);
         }
-        for (byte y=0; y<2; y++) {
-            for (byte x=0; x<numkeys; x++) {
+        for (uint8_t y=0; y<2; y++) {
+            for (uint8_t x=0; x<numkeys; x++) {
                 int address=20+(y*30)+x;
                 mapping[y][x] = EEPROM.read(address);
             }
@@ -125,12 +127,12 @@ void eepromInit(){
 void eepromUpdate(){
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
-    for (byte x=0; x<numkeys; x++) {
+    for (uint8_t x=0; x<numkeys; x++) {
         if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
     }
     // Mapping
-    for (byte y=0; y<2; y++) {
-        for (byte x=0; x<numkeys; x++) {
+    for (uint8_t y=0; y<2; y++) {
+        for (uint8_t x=0; x<numkeys; x++) {
             int address=20+(y*30)+x;
             if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
         }
@@ -153,7 +155,7 @@ void setup() {
     // THIS SECTION NEEDS TO BE CHANGED FOR FULL FREETOUCH SUPPORT
 
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
-    for (byte x=0; x<=numkeys; x++) {
+    for (uint8_t x=0; x<=numkeys; x++) {
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);
@@ -176,7 +178,7 @@ void checkState() {
     // This has no impact on efficacy while making it stupid fast.
     if ((millis() - checkMillis) >= 1) {
         // Write bounce values to main pressed array
-        for(byte x=0; x<=numkeys; x++){ bounce[x].update(); pressed[x] = bounce[x].read(); }
+        for(uint8_t x=0; x<=numkeys; x++){ bounce[x].update(); pressed[x] = bounce[x].read(); }
 #ifndef AVR
         // Get current touch value and write to main array
         touchValue = qt.measure();
@@ -187,7 +189,7 @@ void checkState() {
 #endif
 #ifdef DEBUG
         SERIALAPI.print("[");
-        for (byte x=0;x<=numkeys;x++) {
+        for (uint8_t x=0;x<=numkeys;x++) {
             SERIALAPI.print(pressed[x]);
             if (x != numkeys) SERIALAPI.print(',');
         }
@@ -199,7 +201,7 @@ void checkState() {
 
 // Compares inputs to last inputs and presses/releases key based on state change
 void keyboard() {
-    for (byte x=0; x<numkeys; x++){
+    for (uint8_t x=0; x<numkeys; x++){
         // If the button state changes, press/release a key.
         if ( pressed[x] != lastPressed[x] ){
             if (!pressed[x]) bpsCount++;
@@ -360,7 +362,7 @@ void keyboard() {
 void wheel(){
     static uint8_t hue;
     for(int i = 0; i < numkeys; i++) {
-        byte z = gridMap[i];
+        uint8_t z = gridMap[i];
         if (pressed[i]) leds[z] = CHSV(hue+(i*50),255,255);
         else {
             leds[z] = 0xFFFFFF;
@@ -386,7 +388,7 @@ void rbFade(){
             sat[i]=0;
             val[i]=255;
         }
-        byte z = gridMap[i]; // Allows custom LED mapping (for grids)
+        uint8_t z = gridMap[i]; // Allows custom LED mapping (for grids)
         leds[z] = CHSV(hue+(i*50),sat[i],val[i]);
     }
     hue-=8;
@@ -397,7 +399,7 @@ void rbFade(){
 // Custom colors
 void custom(){
     for(int i = 0; i < numkeys; i++) {
-        byte z = gridMap[i];
+        uint8_t z = gridMap[i];
         if (pressed[i]) leds[z] = CHSV(custColor[z],255,255);
         else leds[z] = 0xFFFFFF;
     }
@@ -405,8 +407,8 @@ void custom(){
 }
 
 unsigned long avgMillis;
-byte bpsColor;
-byte lastColor;
+uint8_t bpsColor;
+uint8_t lastColor;
 void bps(){
     // Update values once per second
     if ((millis() - avgMillis) > 1000) {
@@ -422,7 +424,7 @@ void bps(){
     if (lastColor < bpsColor) lastColor++;
 
     for(int i = 0; i < numkeys; i++) {
-        byte z = gridMap[i];
+        uint8_t z = gridMap[i];
         if (pressed[i]) leds[z] = CHSV(lastColor+100,255,255);
         else leds[z] = 0xFFFFFF;
     }
@@ -431,7 +433,7 @@ void bps(){
 }
 
 unsigned long effectMillis;
-void effects(byte speed, byte MODE) {
+void effects(uint8_t speed, uint8_t MODE) {
     // All LED modes should go here for universal speed control
     if ((millis() - effectMillis) > speed){
         // Select LED mode
@@ -500,14 +502,14 @@ const String remapExp[]={
 
 void keyTable() {
     // Print welcome message
-    for (byte x=0;x<2;x++) SERIALAPI.println(remapExp[x]);
-    byte lineLength = 0;
+    for (uint8_t x=0;x<2;x++) SERIALAPI.println(remapExp[x]);
+    uint8_t lineLength = 0;
     for (int y = 0; y < 69; y++) SERIALAPI.print("-");
     SERIALAPI.println();
     for (int x = 0; x <= 66; x++) {
         if (lineLength == 0) SERIALAPI.print("| ");
         // Make every line wrap at 30 characters
-        byte nameLength = friendlyKeys[x].length(); // save as variable within for loop for repeated use
+        uint8_t nameLength = friendlyKeys[x].length(); // save as variable within for loop for repeated use
         lineLength += nameLength + 6;
         SERIALAPI.print(friendlyKeys[x]);
         nameLength = 9 - nameLength;
@@ -543,17 +545,17 @@ void keyLookup(uint8_t inByte) {
     SERIALAPI.print(char(inByte));
 }
 
-void printBlock(byte block) {
+void printBlock(uint8_t block) {
     switch(block){
         // Greeter message
         case 0: // Greeter
-            for (byte x=0;x<2;x++) SERIALAPI.println(greet[x]);
+            for (uint8_t x=0;x<2;x++) SERIALAPI.println(greet[x]);
             break;
         case 1: // Main menu
-            for (byte x=0;x<6;x++) SERIALAPI.println(menu[x]);
+            for (uint8_t x=0;x<6;x++) SERIALAPI.println(menu[x]);
             break;
         case 2: // LED Mode
-            for (byte x=0;x<5;x++) SERIALAPI.println(LEDmodes[x]);
+            for (uint8_t x=0;x<5;x++) SERIALAPI.println(LEDmodes[x]);
             break;
         case 3: // Brightness
             SERIALAPI.println("Enter a brightness value between 0 and 255.");
@@ -561,9 +563,9 @@ void printBlock(byte block) {
             SERIALAPI.print(bMax);
             break;
         case 4: // Custom colors
-            for (byte x=0;x<4;x++) SERIALAPI.println(custExp[x]);
+            for (uint8_t x=0;x<4;x++) SERIALAPI.println(custExp[x]);
             SERIALAPI.print("Current values: ");
-            for (byte x=0;x<numkeys;x++) {
+            for (uint8_t x=0;x<numkeys;x++) {
                 SERIALAPI.print(custColor[x]);
                 if (x != numkeys-1) SERIALAPI.print(", ");
             }
@@ -572,11 +574,11 @@ void printBlock(byte block) {
             // Print key names and numbers
             SERIALAPI.println();
             SERIALAPI.println("Current values: ");
-            for (byte y=0;y<2;y++) {
+            for (uint8_t y=0;y<2;y++) {
                 SERIALAPI.print("Layer ");
                 SERIALAPI.print(y+1);
                 SERIALAPI.print(": ");
-                for (byte x=0;x<numkeys;x++) { keyLookup(mapping[y][x]); if (x<numkeys-1) SERIALAPI.print(", "); }
+                for (uint8_t x=0;x<numkeys;x++) { keyLookup(mapping[y][x]); if (x<numkeys-1) SERIALAPI.print(", "); }
                 SERIALAPI.println();
             }
             break;
@@ -627,7 +629,7 @@ int parseByte(){
     }
 }
 
-byte parseKey() {
+uint8_t parseKey() {
     String inString = "";    // string to hold input
     bool start=0;
     while (true) {
@@ -676,11 +678,11 @@ void brightMenu(){
 void customMenu(){
     printBlock(4);
     while(true){
-        for(byte x=0;x<numkeys;x++){
+        for(uint8_t x=0;x<numkeys;x++){
             SERIALAPI.print("Color for key ");
             SERIALAPI.print(x+1);
             SERIALAPI.print(": ");
-            byte color = parseByte();
+            uint8_t color = parseByte();
             SERIALAPI.println(color);
             custColor[x] = color;
             effects(10,2);
@@ -697,7 +699,7 @@ void remapMenu(){
 
     // Main loop
     while(true){
-    byte layer;
+    uint8_t layer;
     SERIALAPI.println("Which layer would you like to remap?");
     SERIALAPI.println("0 to exit");
     SERIALAPI.println("1 to remap layer 1");
@@ -726,8 +728,8 @@ void remapMenu(){
     SERIALAPI.print("Layer ");
     SERIALAPI.print(layer);
     SERIALAPI.print(": ");
-    for(byte x=0;x<numkeys;x++){
-        byte key = parseKey();
+    for(uint8_t x=0;x<numkeys;x++){
+        uint8_t key = parseKey();
         keyLookup(key);
         // Subtract 1 because array is 0 indexed
         mapping[layer-1][x] = key;
@@ -790,7 +792,7 @@ void serialCheck() {
 
         // Check incoming character if exists
         if (SERIALAPI.available() > 0) {
-            byte incomingByte = SERIALAPI.read();
+            uint8_t incomingByte = SERIALAPI.read();
             // If it's not 0, repeat the greet message
             if (incomingByte != 48) printBlock(0);
             // Otherwise, enter the menu.
@@ -810,12 +812,14 @@ void idle(){
 void loop() {
     // Update key state to check for button presses
     checkState();
-    // Convert key presses to actual keyboard keys
-    keyboard();
     // Make lights happen
     effects(10, ledMode);
+    // Convert key presses to actual keyboard keys
+    keyboard();
     idle();
     // Debug check for loops per second
     //speedCheck();
+#ifndef AVR // Temporarily disabling for AVR since it seems to break the code.
     serialCheck();
+#endif
 }

@@ -14,6 +14,11 @@ methods like direct, matrix, and touch.
 - [x] Use side button as modifier key for more possible keys.
 - [x] Add idle mode.
     - [ ] Make idle mode timeout configurable.
-- [ ] Fix remapper to allow for non-printable keys.
-- [ ] Allow HID library to accept ASCII values instead of requiring names.
-    - Both of the above could be fixed by using the default Arduino library, but it doesn't support NKRO.
+- [x] Fix remapper to allow for non-printable keys.
+- [x] Allow HID library to accept ASCII values instead of requiring names.
+
+## Outstanding bugs
+- [ ] Flicker on spacebar for SAMD-based 7k keypad
+    - This is NOT present for AVR
+- [ ] Something in configurator super borked for AVR-based 7k keypad
+    - It seems like it has to do with using for loops to iterate through printing

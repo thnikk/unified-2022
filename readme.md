@@ -18,7 +18,8 @@ methods like direct, matrix, and touch.
 - [x] Allow HID library to accept ASCII values instead of requiring names.
 
 ## Outstanding bugs
-- [ ] Flicker on spacebar for SAMD-based 7k keypad
-    - This is NOT present for AVR
-- [ ] Something in configurator super borked for AVR-based 7k keypad
-    - It seems like it has to do with using for loops to iterate through printing
+- [x] ~~Flicker on spacebar for SAMD-based 7k keypad~~
+    - ~~This is NOT present for AVR~~
+        - I wasted 2-3 hours debugging a bad LED.
+- [x] Fix borked configurator for AVR 7K
+    - [ ] Fix remapper table

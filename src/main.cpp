@@ -69,6 +69,7 @@ const uint8_t gridMap[] = {0,1,2,3,4,5,6};
 uint8_t version = 2;
 
 // Remapper
+#ifndef AVR
 const String friendlyKeys[] = {
     "L_CTRL", "L_SHIFT", "L_ALT", "L_GUI", "R_CTRL", "R_SHIFT",
     "R_ALT", "R_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
@@ -79,6 +80,7 @@ const String friendlyKeys[] = {
     "PAD_4", "PAD_5", "PAD_6", "PAD_7", "PAD_8", "PAD_9", "PAD_0", "MENU",
     "V_MUTE", "V_UP", "V_DOWN"
 };
+#endif
 
 
 void eepromInit(){
@@ -187,14 +189,6 @@ void checkState() {
         // To release, it must go under the threshold value by an extra 50 to avoid constantly changing
         else if ( touchValue < touchThreshold-50 ) pressed[numkeys] = 1;
 #endif
-#ifdef DEBUG
-        SERIALAPI.print("[");
-        for (uint8_t x=0;x<=numkeys;x++) {
-            SERIALAPI.print(pressed[x]);
-            if (x != numkeys) SERIALAPI.print(',');
-        }
-        SERIALAPI.println("]");
-#endif
         checkMillis=millis();
     }
 }
@@ -204,6 +198,14 @@ void keyboard() {
     for (uint8_t x=0; x<numkeys; x++){
         // If the button state changes, press/release a key.
         if ( pressed[x] != lastPressed[x] ){
+#ifdef DEBUG
+            // Print when key state changes.
+            SERIALAPI.print("Key ");
+            SERIALAPI.print(x+1);
+            SERIALAPI.print(" has been ");
+            if (pressed[x] == 0) SERIALAPI.println("pressed.");
+            if (pressed[x] == 1) SERIALAPI.println("released.");
+#endif
             if (!pressed[x]) bpsCount++;
             pm = millis();
             uint8_t key = mapping[!pressed[numkeys]][x];
@@ -362,11 +364,8 @@ void keyboard() {
 void wheel(){
     static uint8_t hue;
     for(int i = 0; i < numkeys; i++) {
-        uint8_t z = gridMap[i];
-        if (pressed[i]) leds[z] = CHSV(hue+(i*50),255,255);
-        else {
-            leds[z] = 0xFFFFFF;
-        }
+        if (pressed[i]) leds[i] = CHSV(hue+(i*50),255,255);
+        else leds[i] = 0xFFFFFF;
     }
     hue--;
     FastLED.show();
@@ -470,39 +469,59 @@ void speedCheck() {
 }
 
 // Menu text
-const String greet[]={
-    "Press 0 to enter the configurator.",
-    "(Keys on the keypad are disabled while the configurator is open.)"
-};
-const String menu[]={
-    "Welcome to the configurator! Enter:",
-    "0 to save and exit",
-    "1 to remap keys",
-    "2 to set the LED mode",
-    "3 to set the brightness",
-    "4 to set the custom colors"
-};
-const String LEDmodes[]={
-    "Select an LED mode. Enter:",
-    "0 for Cycle",
-    "1 for Reactive",
-    "2 for Custom",
-    "3 for BPS"
-};
-const String custExp[]={
-    "Please enter a color value for the respective key.",
-    "Colors are expressed as a 0-255 value, where:",
-    "red=0, orange=32, yellow=64, green=96",
-    "aqua=128, blue=160, purple=192, and pink=224"
-};
-const String remapExp[]={
-    "If you're trying to map a key that doesn't print a character,",
-    "please use one of the codes below with a ':' in front of it."
-};
+void greet(){
+    SERIALAPI.println("Press 0 to enter the configurator.");
+    SERIALAPI.println("(Keys on the keypad are disabled while the configurator is open.)");
+}
+void menu(){
+    SERIALAPI.println("Welcome to the configurator! Enter:");
+    SERIALAPI.println("0 to save and exit");
+    SERIALAPI.println("1 to remap keys");
+    SERIALAPI.println("2 to set the LED mode");
+    SERIALAPI.println("3 to set the brightness");
+    SERIALAPI.println("4 to set the custom colors");
+}
+void LEDmodes(){
+    SERIALAPI.println("Select an LED mode. Enter:");
+    SERIALAPI.println("0 for Cycle");
+    SERIALAPI.println("1 for Reactive");
+    SERIALAPI.println("2 for Custom");
+    SERIALAPI.println("3 for BPS");
+}
+void custExp(){
+    SERIALAPI.println("Please enter a color value for the respective key.");
+    SERIALAPI.println("Colors are expressed as a 0-255 value, where:");
+    SERIALAPI.println("red=0, orange=32, yellow=64, green=96");
+    SERIALAPI.println("aqua=128, blue=160, purple=192, and pink=224");
+}
+void remapExp(){
+    SERIALAPI.println("If you're trying to map a key that doesn't print a character,");
+    SERIALAPI.println("please use one of the codes below with a ':' in front of it.");
+}
+void avrTable(){
+    SERIALAPI.println("L_CTRL = 0|L_SHIFT = 1|L_ALT  = 2|L_GUI  = 3");
+    SERIALAPI.println("R_CTRL = 4|R_SHIFT = 5|R_ALT  = 6|R_GUI  = 7");
+    SERIALAPI.println("ESC    = 8|F1      = 9|F2     =10|F3     =11");
+    SERIALAPI.println("F4     =12|F5      =13|F6     =14|F7     =15");
+    SERIALAPI.println("F8     =16|F9      =17|F10    =18|F11    =19");
+    SERIALAPI.println("F12    =20|F13     =21|F14    =22|F15    =23");
+    SERIALAPI.println("F16    =24|F17     =25|F18    =26|F19    =27");
+    SERIALAPI.println("F20    =28|F21     =29|F22    =30|F23    =31");
+    SERIALAPI.println("F24    =32|ENTER   =33|BACKSP =34|TAB    =35");
+    SERIALAPI.println("PRINT  =36|PAUSE   =37|INSERT =38|HOME   =39");
+    SERIALAPI.println("PAGE_UP=40|DELETE  =41|END    =42|PAGE_DN=43");
+    SERIALAPI.println("RIGHT  =44|LEFT    =45|DOWN   =46|UP     =47");
+    SERIALAPI.println("PAD_DIV=48|PAD_MULT=49|PAD_SUB=50|PAD_ADD=51");
+    SERIALAPI.println("PAD_ENT=52|PAD_1   =53|PAD_2  =54|PAD_3  =55");
+    SERIALAPI.println("PAD_4  =56|PAD_5   =57|PAD_6  =58|PAD_7  =59");
+    SERIALAPI.println("PAD_8  =60|PAD_9   =61|PAD_0  =62|MENU   =63");
+    SERIALAPI.println("V_MUTE =64|V_UP    =65|V_DOWN =66|          ");
+}
 
 void keyTable() {
     // Print welcome message
-    for (uint8_t x=0;x<2;x++) SERIALAPI.println(remapExp[x]);
+    remapExp();
+#ifndef AVR
     uint8_t lineLength = 0;
     for (int y = 0; y < 69; y++) SERIALAPI.print("-");
     SERIALAPI.println();
@@ -534,13 +553,20 @@ void keyTable() {
     if (lineLength != 0) SERIALAPI.println();
     for (int y = 0; y < 69; y++) SERIALAPI.print("-");
     SERIALAPI.println();
+#else
+    avrTable();
+#endif
     SERIALAPI.println("For example, enter :8 to map escape");
     SERIALAPI.println();
 }
 
 void keyLookup(uint8_t inByte) {
     for (uint8_t x=0; x<=66;x++) {
+#ifndef AVR
         if (inByte == 128+x) { SERIALAPI.print(friendlyKeys[x]); return; }
+#else
+        if (inByte == 128+x) { SERIALAPI.print(":"); SERIALAPI.print(x); return; }
+#endif
     }
     SERIALAPI.print(char(inByte));
 }
@@ -549,13 +575,13 @@ void printBlock(uint8_t block) {
     switch(block){
         // Greeter message
         case 0: // Greeter
-            for (uint8_t x=0;x<2;x++) SERIALAPI.println(greet[x]);
+            greet();
             break;
         case 1: // Main menu
-            for (uint8_t x=0;x<6;x++) SERIALAPI.println(menu[x]);
+            menu();
             break;
         case 2: // LED Mode
-            for (uint8_t x=0;x<5;x++) SERIALAPI.println(LEDmodes[x]);
+            LEDmodes();
             break;
         case 3: // Brightness
             SERIALAPI.println("Enter a brightness value between 0 and 255.");
@@ -563,7 +589,7 @@ void printBlock(uint8_t block) {
             SERIALAPI.print(bMax);
             break;
         case 4: // Custom colors
-            for (uint8_t x=0;x<4;x++) SERIALAPI.println(custExp[x]);
+            custExp();
             SERIALAPI.print("Current values: ");
             for (uint8_t x=0;x<numkeys;x++) {
                 SERIALAPI.print(custColor[x]);
@@ -804,7 +830,8 @@ void serialCheck() {
 }
 
 void idle(){
-    if ((millis() - pm) > 60000) bMax = 0;
+    // Idle timeout is 5 minutes
+    if ((millis() - pm) > 300000) bMax = 0;
     // Restore from EEPROM value here
     else bMax = EEPROM.read(1);
 }
@@ -819,7 +846,7 @@ void loop() {
     idle();
     // Debug check for loops per second
     //speedCheck();
-#ifndef AVR // Temporarily disabling for AVR since it seems to break the code.
+#ifndef DEBUG
     serialCheck();
 #endif
 }

@@ -1,35 +1,55 @@
 // Libraries
 #include <Arduino.h>
-#include <Adafruit_FreeTouch.h>
-#include <FlashAsEEPROM.h>
+#if defined AVR // AVR specific
+    #include <EEPROM.h>
+#else // SAMD specific
+    #include <FlashAsEEPROM.h>
+    #include <Adafruit_FreeTouch.h>
+#endif
 #include <Bounce2.h>
-//#include <Keyboard.h>
 #include <HID-Project.h>
 #include <FastLED.h>
 
 // Initialize inputs and LEDs
 Bounce * bounce = new Bounce[numkeys+1];
-Adafruit_FreeTouch qt = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#ifndef AVR
+    Adafruit_FreeTouch qt = Adafruit_FreeTouch(TPIN, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#endif
 CRGBArray<numkeys> leds;
 
-const byte pins[] = { 12, 11 };
-uint8_t mapping[][2] = {
-{122,120},
-{KEY_VOLUME_UP,KEY_VOLUME_DOWN}
+#ifdef AVR
+const byte pins[] = { 2, 3, 7, 9, 10, 11, 12, 4 };
+#endif
+#ifdef TRINKETM0
+const byte pins[] = { 0, 2, 20, 19, 3 };
+#else
+const byte pins[] = { 12, 11, 10, 9, 6, 5, 0, 1 };
+#endif
+
+#ifdef KM7
+uint8_t mapping[][7] = {
+{115,100,102,106,107,108,32},
+{136,126,173,172,175,174,0}
 };
+#else
+uint8_t mapping[][4] = {
+{122,120,99,118},
+{136,126,173,172}
+};
+#endif
 
 bool pressed[numkeys+1];
 bool lastPressed[numkeys+1];
 
 byte b = 127;
-byte bMax = 255;
+byte bMax = 127;
 
-byte ledMode = 2;
+byte ledMode = 0;
 byte effectSpeed = 10;
 
 // Colors for custom LED mode
 // These are the initial values stored before changed through the remapper
-byte custColor[] = { 224, 192 };
+byte custColor[] = {224,192,224,192,224,192,224};
 
 // BPS
 byte bpsCount;
@@ -41,36 +61,32 @@ int touchThreshold = 500;
 // Millis timer for idle check
 unsigned long pm;
 
-const byte gridMap[] = {0, 1, 3, 2};
+const byte gridMap[] = {0,1,2,3,4,5,6};
 
+// Version (Update this value to update EEPROM for AVR boards)
+byte version = 1;
 
 // Remapper
 const String friendlyKeys[] = {
-    "LEFT_CTRL", "LEFT_SHIFT", "LEFT_ALT", "LEFT_GUI", "RIGHT_CTRL", "RIGHT_SHIFT",
-    "RIGHT_ALT", "RIGHT_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
+    "L_CTRL", "L_SHIFT", "L_ALT", "L_GUI", "R_CTRL", "R_SHIFT",
+    "R_ALT", "R_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
     "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
-    "F21", "F22", "F23", "F24", "ENTER", "BACKSPACE", "TAB", "PRINT", "PAUSE", "INSERT",
-    "HOME", "PAGE_UP", "DELETE", "END", "PAGE_DOWN", "RIGHT", "LEFT", "DOWN", "UP",
-    "PAD_DIV", "PAD_MULT", "PAD_SUB", "PAD_ADD", "PAD_ENTER", "PAD_1", "PAD_2", "PAD_3",
-    "PAD_4", "PAD_5", "PAD_6", "PAD_7", "PAD_8", "PAD_9", "PAD_0", "PAD_DOT", "MENU",
-    "VOL_MUTE", "VOL_UP", "VOL_DOWN"
+    "F21", "F22", "F23", "F24", "ENTER", "BACKSP", "TAB", "PRINT", "PAUSE", "INSERT",
+    "HOME", "PAGE_UP", "DELETE", "END", "PAGE_DN", "RIGHT", "LEFT", "DOWN", "UP",
+    "PAD_DIV", "PAD_MULT", "PAD_SUB", "PAD_ADD", "PAD_ENT", "PAD_1", "PAD_2", "PAD_3",
+    "PAD_4", "PAD_5", "PAD_6", "PAD_7", "PAD_8", "PAD_9", "PAD_0", "MENU",
+    "V_MUTE", "V_UP", "V_DOWN"
 };
-const uint8_t keycodes[] = {
-    KEY_LEFT_CTRL, KEY_LEFT_SHIFT, KEY_LEFT_ALT, KEY_LEFT_GUI, KEY_RIGHT_CTRL,
-    KEY_RIGHT_SHIFT, KEY_RIGHT_ALT, KEY_RIGHT_GUI, KEY_ESC, KEY_F1, KEY_F2, KEY_F3,
-    KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12, KEY_F13,
-    KEY_F14, KEY_F15, KEY_F16, KEY_F17, KEY_F18, KEY_F19, KEY_F20, KEY_F21, KEY_F22,
-    KEY_F23, KEY_F24, KEY_ENTER, KEY_BACKSPACE, KEY_TAB, KEY_PRINT, KEY_PAUSE,
-    KEY_INSERT, KEY_HOME, KEY_PAGE_UP, KEY_DELETE, KEY_END, KEY_PAGE_DOWN, KEY_RIGHT,
-    KEY_LEFT, KEY_DOWN, KEY_UP, KEYPAD_DIVIDE, KEYPAD_MULTIPLY, KEYPAD_SUBTRACT,
-    KEYPAD_ADD, KEYPAD_ENTER, KEYPAD_1, KEYPAD_2, KEYPAD_3, KEYPAD_4, KEYPAD_5, KEYPAD_6,
-    KEYPAD_7, KEYPAD_8, KEYPAD_9, KEYPAD_0, KEYPAD_DOT, KEY_MENU, KEY_VOLUME_MUTE,
-    KEY_VOLUME_UP, KEY_VOLUME_DOWN
-};
+
 
 void eepromInit(){
     // If first boot after programming
+#ifndef AVR
     if (!EEPROM.isValid()) {
+#else
+    if (EEPROM.read(0) != version){
+        EEPROM.write(0, version);
+#endif
         // Assign default values
         EEPROM.write(1, bMax);
         b = bMax;
@@ -86,7 +102,9 @@ void eepromInit(){
             }
         }
         // Write values
+#ifndef AVR
         EEPROM.commit();
+#endif
     }
     // Otherwise, restore values
     else {
@@ -117,15 +135,17 @@ void eepromUpdate(){
             if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
         }
     }
+#ifndef AVR
     EEPROM.commit();
+#endif
 }
 
 void setup() {
     // Set the serial baudrate
-    SerialUSB.begin(9600);
+    SERIALAPI.begin(9600);
 
     // Start LEDs
-    FastLED.addLeds<NEOPIXEL, 13>(leds, numkeys);
+    FastLED.addLeds<NEOPIXEL, NPPIN>(leds, numkeys);
 
     // Set brightness
     FastLED.setBrightness(255);
@@ -143,7 +163,9 @@ void setup() {
     eepromInit();
 
     // Start freetouch for side button
+#ifndef AVR
     qt.begin();
+#endif
     NKROKeyboard.begin();
 }
 
@@ -155,19 +177,21 @@ void checkState() {
     if ((millis() - checkMillis) >= 1) {
         // Write bounce values to main pressed array
         for(byte x=0; x<=numkeys; x++){ bounce[x].update(); pressed[x] = bounce[x].read(); }
+#ifndef AVR
         // Get current touch value and write to main array
         touchValue = qt.measure();
         // If it goes over the threshold value, the button is pressed
         if (touchValue > touchThreshold) pressed[numkeys] = 0;
         // To release, it must go under the threshold value by an extra 50 to avoid constantly changing
         else if ( touchValue < touchThreshold-50 ) pressed[numkeys] = 1;
+#endif
 #ifdef DEBUG
-        SerialUSB.print("[");
+        SERIALAPI.print("[");
         for (byte x=0;x<=numkeys;x++) {
-            SerialUSB.print(pressed[x]);
-            if (x != numkeys) SerialUSB.print(',');
+            SERIALAPI.print(pressed[x]);
+            if (x != numkeys) SERIALAPI.print(',');
         }
-        SerialUSB.println("]");
+        SERIALAPI.println("]");
 #endif
         checkMillis=millis();
     }
@@ -186,146 +210,144 @@ void keyboard() {
             // Check press state and press/release key
             switch(key){
                 // Key exceptions need to go here for NKROKeyboard
-                case KEY_ESC: if (!pressed[x]) NKROKeyboard.press(KEY_ESC); if (pressed[x]) NKROKeyboard.release(KEY_ESC); break;
-                case KEY_F1: if (!pressed[x]) NKROKeyboard.press(KEY_F1); if (pressed[x]) NKROKeyboard.release(KEY_F1); break;
-                case KEY_F2: if (!pressed[x]) NKROKeyboard.press(KEY_F2); if (pressed[x]) NKROKeyboard.release(KEY_F2); break;
-                case KEY_F3: if (!pressed[x]) NKROKeyboard.press(KEY_F3); if (pressed[x]) NKROKeyboard.release(KEY_F3); break;
-                case KEY_F4: if (!pressed[x]) NKROKeyboard.press(KEY_F4); if (pressed[x]) NKROKeyboard.release(KEY_F4); break;
-                case KEY_F5: if (!pressed[x]) NKROKeyboard.press(KEY_F5); if (pressed[x]) NKROKeyboard.release(KEY_F5); break;
-                case KEY_F6: if (!pressed[x]) NKROKeyboard.press(KEY_F6); if (pressed[x]) NKROKeyboard.release(KEY_F6); break;
-                case KEY_F7: if (!pressed[x]) NKROKeyboard.press(KEY_F7); if (pressed[x]) NKROKeyboard.release(KEY_F7); break;
-                case KEY_F8: if (!pressed[x]) NKROKeyboard.press(KEY_F8); if (pressed[x]) NKROKeyboard.release(KEY_F8); break;
-                case KEY_F9: if (!pressed[x]) NKROKeyboard.press(KEY_F9); if (pressed[x]) NKROKeyboard.release(KEY_F9); break;
-                case KEY_F10: if (!pressed[x]) NKROKeyboard.press(KEY_F10); if (pressed[x]) NKROKeyboard.release(KEY_F10); break;
-                case KEY_F11: if (!pressed[x]) NKROKeyboard.press(KEY_F11); if (pressed[x]) NKROKeyboard.release(KEY_F11); break;
-                case KEY_F12: if (!pressed[x]) NKROKeyboard.press(KEY_F12); if (pressed[x]) NKROKeyboard.release(KEY_F12); break;
-                case KEY_F13: if (!pressed[x]) NKROKeyboard.press(KEY_F13); if (pressed[x]) NKROKeyboard.release(KEY_F13); break;
-                case KEY_F14: if (!pressed[x]) NKROKeyboard.press(KEY_F14); if (pressed[x]) NKROKeyboard.release(KEY_F14); break;
-                case KEY_F15: if (!pressed[x]) NKROKeyboard.press(KEY_F15); if (pressed[x]) NKROKeyboard.release(KEY_F15); break;
-                case KEY_F16: if (!pressed[x]) NKROKeyboard.press(KEY_F16); if (pressed[x]) NKROKeyboard.release(KEY_F16); break;
-                case KEY_F17: if (!pressed[x]) NKROKeyboard.press(KEY_F17); if (pressed[x]) NKROKeyboard.release(KEY_F17); break;
-                case KEY_F18: if (!pressed[x]) NKROKeyboard.press(KEY_F18); if (pressed[x]) NKROKeyboard.release(KEY_F18); break;
-                case KEY_F19: if (!pressed[x]) NKROKeyboard.press(KEY_F19); if (pressed[x]) NKROKeyboard.release(KEY_F19); break;
-                case KEY_F20: if (!pressed[x]) NKROKeyboard.press(KEY_F20); if (pressed[x]) NKROKeyboard.release(KEY_F20); break;
-                case KEY_F21: if (!pressed[x]) NKROKeyboard.press(KEY_F21); if (pressed[x]) NKROKeyboard.release(KEY_F21); break;
-                case KEY_F22: if (!pressed[x]) NKROKeyboard.press(KEY_F22); if (pressed[x]) NKROKeyboard.release(KEY_F22); break;
-                case KEY_F23: if (!pressed[x]) NKROKeyboard.press(KEY_F23); if (pressed[x]) NKROKeyboard.release(KEY_F23); break;
-                case KEY_F24: if (!pressed[x]) NKROKeyboard.press(KEY_F24); if (pressed[x]) NKROKeyboard.release(KEY_F24); break;
-                case KEY_ENTER: if (!pressed[x]) NKROKeyboard.press(KEY_ENTER); if (pressed[x]) NKROKeyboard.release(KEY_ENTER); break;
-                case KEY_BACKSPACE: if (!pressed[x]) NKROKeyboard.press(KEY_BACKSPACE); if (pressed[x]) NKROKeyboard.release(KEY_BACKSPACE); break;
-                case KEY_TAB: if (!pressed[x]) NKROKeyboard.press(KEY_TAB); if (pressed[x]) NKROKeyboard.release(KEY_TAB); break;
-                case KEY_PRINT: if (!pressed[x]) NKROKeyboard.press(KEY_PRINT); if (pressed[x]) NKROKeyboard.release(KEY_PRINT); break;
-                case KEY_PAUSE: if (!pressed[x]) NKROKeyboard.press(KEY_PAUSE); if (pressed[x]) NKROKeyboard.release(KEY_PAUSE); break;
-                case KEY_INSERT: if (!pressed[x]) NKROKeyboard.press(KEY_INSERT); if (pressed[x]) NKROKeyboard.release(KEY_INSERT); break;
-                case KEY_HOME: if (!pressed[x]) NKROKeyboard.press(KEY_HOME); if (pressed[x]) NKROKeyboard.release(KEY_HOME); break;
-                case KEY_PAGE_UP: if (!pressed[x]) NKROKeyboard.press(KEY_PAGE_UP); if (pressed[x]) NKROKeyboard.release(KEY_PAGE_UP); break;
-                case KEY_DELETE: if (!pressed[x]) NKROKeyboard.press(KEY_DELETE); if (pressed[x]) NKROKeyboard.release(KEY_DELETE); break;
-                case KEY_END: if (!pressed[x]) NKROKeyboard.press(KEY_END); if (pressed[x]) NKROKeyboard.release(KEY_END); break;
-                case KEY_PAGE_DOWN: if (!pressed[x]) NKROKeyboard.press(KEY_PAGE_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_PAGE_DOWN); break;
-                case KEY_RIGHT: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT); break;
-                case KEY_LEFT: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT); break;
-                case KEY_DOWN: if (!pressed[x]) NKROKeyboard.press(KEY_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_DOWN); break;
-                case KEY_UP: if (!pressed[x]) NKROKeyboard.press(KEY_UP); if (pressed[x]) NKROKeyboard.release(KEY_UP); break;
-                case KEYPAD_DIVIDE: if (!pressed[x]) NKROKeyboard.press(KEYPAD_DIVIDE); if (pressed[x]) NKROKeyboard.release(KEYPAD_DIVIDE); break;
-                case KEYPAD_MULTIPLY: if (!pressed[x]) NKROKeyboard.press(KEYPAD_MULTIPLY); if (pressed[x]) NKROKeyboard.release(KEYPAD_MULTIPLY); break;
-                case KEYPAD_SUBTRACT: if (!pressed[x]) NKROKeyboard.press(KEYPAD_SUBTRACT); if (pressed[x]) NKROKeyboard.release(KEYPAD_SUBTRACT); break;
-                case KEYPAD_ADD: if (!pressed[x]) NKROKeyboard.press(KEYPAD_ADD); if (pressed[x]) NKROKeyboard.release(KEYPAD_ADD); break;
-                case KEYPAD_ENTER: if (!pressed[x]) NKROKeyboard.press(KEYPAD_ENTER); if (pressed[x]) NKROKeyboard.release(KEYPAD_ENTER); break;
-                case KEYPAD_1: if (!pressed[x]) NKROKeyboard.press(KEYPAD_1); if (pressed[x]) NKROKeyboard.release(KEYPAD_1); break;
-                case KEYPAD_2: if (!pressed[x]) NKROKeyboard.press(KEYPAD_2); if (pressed[x]) NKROKeyboard.release(KEYPAD_2); break;
-                case KEYPAD_3: if (!pressed[x]) NKROKeyboard.press(KEYPAD_3); if (pressed[x]) NKROKeyboard.release(KEYPAD_3); break;
-                case KEYPAD_4: if (!pressed[x]) NKROKeyboard.press(KEYPAD_4); if (pressed[x]) NKROKeyboard.release(KEYPAD_4); break;
-                case KEYPAD_5: if (!pressed[x]) NKROKeyboard.press(KEYPAD_5); if (pressed[x]) NKROKeyboard.release(KEYPAD_5); break;
-                case KEYPAD_6: if (!pressed[x]) NKROKeyboard.press(KEYPAD_6); if (pressed[x]) NKROKeyboard.release(KEYPAD_6); break;
-                case KEYPAD_7: if (!pressed[x]) NKROKeyboard.press(KEYPAD_7); if (pressed[x]) NKROKeyboard.release(KEYPAD_7); break;
-                case KEYPAD_8: if (!pressed[x]) NKROKeyboard.press(KEYPAD_8); if (pressed[x]) NKROKeyboard.release(KEYPAD_8); break;
-                case KEYPAD_9: if (!pressed[x]) NKROKeyboard.press(KEYPAD_9); if (pressed[x]) NKROKeyboard.release(KEYPAD_9); break;
-                case KEYPAD_0: if (!pressed[x]) NKROKeyboard.press(KEYPAD_0); if (pressed[x]) NKROKeyboard.release(KEYPAD_0); break;
-                case KEYPAD_DOT: if (!pressed[x]) NKROKeyboard.press(KEYPAD_DOT); if (pressed[x]) NKROKeyboard.release(KEYPAD_DOT); break;
-                case KEY_MENU: if (!pressed[x]) NKROKeyboard.press(KEY_MENU); if (pressed[x]) NKROKeyboard.release(KEY_MENU); break;
-                case KEY_VOLUME_MUTE: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_MUTE); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_MUTE); break;
-                case KEY_VOLUME_UP: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_UP); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_UP); break;
-                case KEY_VOLUME_DOWN: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_DOWN); break;
-                case KEY_LEFT_CTRL: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_CTRL); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_CTRL); break;
-                case KEY_LEFT_SHIFT: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_SHIFT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_SHIFT); break;
-                case KEY_LEFT_ALT: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_ALT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_ALT); break;
-                case KEY_LEFT_GUI: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_GUI); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_GUI); break;
-                case KEY_RIGHT_CTRL: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_CTRL); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_CTRL); break;
-                case KEY_RIGHT_SHIFT: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_SHIFT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_SHIFT); break;
-                case KEY_RIGHT_ALT: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_ALT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_ALT); break;
-                case KEY_RIGHT_GUI: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_GUI); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_GUI); break;
+                case 128: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_CTRL); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_CTRL); break;
+                case 129: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_SHIFT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_SHIFT); break;
+                case 130: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_ALT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_ALT); break;
+                case 131: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT_GUI); if (pressed[x]) NKROKeyboard.release(KEY_LEFT_GUI); break;
+                case 132: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_CTRL); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_CTRL); break;
+                case 133: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_SHIFT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_SHIFT); break;
+                case 134: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_ALT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_ALT); break;
+                case 135: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT_GUI); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT_GUI); break;
+                case 136: if (!pressed[x]) NKROKeyboard.press(KEY_ESC); if (pressed[x]) NKROKeyboard.release(KEY_ESC); break;
+                case 137: if (!pressed[x]) NKROKeyboard.press(KEY_F1); if (pressed[x]) NKROKeyboard.release(KEY_F1); break;
+                case 138: if (!pressed[x]) NKROKeyboard.press(KEY_F2); if (pressed[x]) NKROKeyboard.release(KEY_F2); break;
+                case 139: if (!pressed[x]) NKROKeyboard.press(KEY_F3); if (pressed[x]) NKROKeyboard.release(KEY_F3); break;
+                case 140: if (!pressed[x]) NKROKeyboard.press(KEY_F4); if (pressed[x]) NKROKeyboard.release(KEY_F4); break;
+                case 141: if (!pressed[x]) NKROKeyboard.press(KEY_F5); if (pressed[x]) NKROKeyboard.release(KEY_F5); break;
+                case 142: if (!pressed[x]) NKROKeyboard.press(KEY_F6); if (pressed[x]) NKROKeyboard.release(KEY_F6); break;
+                case 143: if (!pressed[x]) NKROKeyboard.press(KEY_F7); if (pressed[x]) NKROKeyboard.release(KEY_F7); break;
+                case 144: if (!pressed[x]) NKROKeyboard.press(KEY_F8); if (pressed[x]) NKROKeyboard.release(KEY_F8); break;
+                case 145: if (!pressed[x]) NKROKeyboard.press(KEY_F9); if (pressed[x]) NKROKeyboard.release(KEY_F9); break;
+                case 146: if (!pressed[x]) NKROKeyboard.press(KEY_F10); if (pressed[x]) NKROKeyboard.release(KEY_F10); break;
+                case 147: if (!pressed[x]) NKROKeyboard.press(KEY_F11); if (pressed[x]) NKROKeyboard.release(KEY_F11); break;
+                case 148: if (!pressed[x]) NKROKeyboard.press(KEY_F12); if (pressed[x]) NKROKeyboard.release(KEY_F12); break;
+                case 149: if (!pressed[x]) NKROKeyboard.press(KEY_F13); if (pressed[x]) NKROKeyboard.release(KEY_F13); break;
+                case 150: if (!pressed[x]) NKROKeyboard.press(KEY_F14); if (pressed[x]) NKROKeyboard.release(KEY_F14); break;
+                case 151: if (!pressed[x]) NKROKeyboard.press(KEY_F15); if (pressed[x]) NKROKeyboard.release(KEY_F15); break;
+                case 152: if (!pressed[x]) NKROKeyboard.press(KEY_F16); if (pressed[x]) NKROKeyboard.release(KEY_F16); break;
+                case 153: if (!pressed[x]) NKROKeyboard.press(KEY_F17); if (pressed[x]) NKROKeyboard.release(KEY_F17); break;
+                case 154: if (!pressed[x]) NKROKeyboard.press(KEY_F18); if (pressed[x]) NKROKeyboard.release(KEY_F18); break;
+                case 155: if (!pressed[x]) NKROKeyboard.press(KEY_F19); if (pressed[x]) NKROKeyboard.release(KEY_F19); break;
+                case 156: if (!pressed[x]) NKROKeyboard.press(KEY_F20); if (pressed[x]) NKROKeyboard.release(KEY_F20); break;
+                case 157: if (!pressed[x]) NKROKeyboard.press(KEY_F21); if (pressed[x]) NKROKeyboard.release(KEY_F21); break;
+                case 158: if (!pressed[x]) NKROKeyboard.press(KEY_F22); if (pressed[x]) NKROKeyboard.release(KEY_F22); break;
+                case 159: if (!pressed[x]) NKROKeyboard.press(KEY_F23); if (pressed[x]) NKROKeyboard.release(KEY_F23); break;
+                case 160: if (!pressed[x]) NKROKeyboard.press(KEY_F24); if (pressed[x]) NKROKeyboard.release(KEY_F24); break;
+                case 161: if (!pressed[x]) NKROKeyboard.press(KEY_ENTER); if (pressed[x]) NKROKeyboard.release(KEY_ENTER); break;
+                case 162: if (!pressed[x]) NKROKeyboard.press(KEY_BACKSPACE); if (pressed[x]) NKROKeyboard.release(KEY_BACKSPACE); break;
+                case 163: if (!pressed[x]) NKROKeyboard.press(KEY_TAB); if (pressed[x]) NKROKeyboard.release(KEY_TAB); break;
+                case 164: if (!pressed[x]) NKROKeyboard.press(KEY_PRINT); if (pressed[x]) NKROKeyboard.release(KEY_PRINT); break;
+                case 165: if (!pressed[x]) NKROKeyboard.press(KEY_PAUSE); if (pressed[x]) NKROKeyboard.release(KEY_PAUSE); break;
+                case 166: if (!pressed[x]) NKROKeyboard.press(KEY_INSERT); if (pressed[x]) NKROKeyboard.release(KEY_INSERT); break;
+                case 167: if (!pressed[x]) NKROKeyboard.press(KEY_HOME); if (pressed[x]) NKROKeyboard.release(KEY_HOME); break;
+                case 168: if (!pressed[x]) NKROKeyboard.press(KEY_PAGE_UP); if (pressed[x]) NKROKeyboard.release(KEY_PAGE_UP); break;
+                case 169: if (!pressed[x]) NKROKeyboard.press(KEY_DELETE); if (pressed[x]) NKROKeyboard.release(KEY_DELETE); break;
+                case 170: if (!pressed[x]) NKROKeyboard.press(KEY_END); if (pressed[x]) NKROKeyboard.release(KEY_END); break;
+                case 171: if (!pressed[x]) NKROKeyboard.press(KEY_PAGE_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_PAGE_DOWN); break;
+                case 172: if (!pressed[x]) NKROKeyboard.press(KEY_RIGHT); if (pressed[x]) NKROKeyboard.release(KEY_RIGHT); break;
+                case 173: if (!pressed[x]) NKROKeyboard.press(KEY_LEFT); if (pressed[x]) NKROKeyboard.release(KEY_LEFT); break;
+                case 174: if (!pressed[x]) NKROKeyboard.press(KEY_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_DOWN); break;
+                case 175: if (!pressed[x]) NKROKeyboard.press(KEY_UP); if (pressed[x]) NKROKeyboard.release(KEY_UP); break;
+                case 176: if (!pressed[x]) NKROKeyboard.press(KEYPAD_DIVIDE); if (pressed[x]) NKROKeyboard.release(KEYPAD_DIVIDE); break;
+                case 177: if (!pressed[x]) NKROKeyboard.press(KEYPAD_MULTIPLY); if (pressed[x]) NKROKeyboard.release(KEYPAD_MULTIPLY); break;
+                case 178: if (!pressed[x]) NKROKeyboard.press(KEYPAD_SUBTRACT); if (pressed[x]) NKROKeyboard.release(KEYPAD_SUBTRACT); break;
+                case 179: if (!pressed[x]) NKROKeyboard.press(KEYPAD_ADD); if (pressed[x]) NKROKeyboard.release(KEYPAD_ADD); break;
+                case 180: if (!pressed[x]) NKROKeyboard.press(KEYPAD_ENTER); if (pressed[x]) NKROKeyboard.release(KEYPAD_ENTER); break;
+                case 181: if (!pressed[x]) NKROKeyboard.press(KEYPAD_1); if (pressed[x]) NKROKeyboard.release(KEYPAD_1); break;
+                case 182: if (!pressed[x]) NKROKeyboard.press(KEYPAD_2); if (pressed[x]) NKROKeyboard.release(KEYPAD_2); break;
+                case 183: if (!pressed[x]) NKROKeyboard.press(KEYPAD_3); if (pressed[x]) NKROKeyboard.release(KEYPAD_3); break;
+                case 184: if (!pressed[x]) NKROKeyboard.press(KEYPAD_4); if (pressed[x]) NKROKeyboard.release(KEYPAD_4); break;
+                case 185: if (!pressed[x]) NKROKeyboard.press(KEYPAD_5); if (pressed[x]) NKROKeyboard.release(KEYPAD_5); break;
+                case 186: if (!pressed[x]) NKROKeyboard.press(KEYPAD_6); if (pressed[x]) NKROKeyboard.release(KEYPAD_6); break;
+                case 187: if (!pressed[x]) NKROKeyboard.press(KEYPAD_7); if (pressed[x]) NKROKeyboard.release(KEYPAD_7); break;
+                case 188: if (!pressed[x]) NKROKeyboard.press(KEYPAD_8); if (pressed[x]) NKROKeyboard.release(KEYPAD_8); break;
+                case 189: if (!pressed[x]) NKROKeyboard.press(KEYPAD_9); if (pressed[x]) NKROKeyboard.release(KEYPAD_9); break;
+                case 190: if (!pressed[x]) NKROKeyboard.press(KEYPAD_0); if (pressed[x]) NKROKeyboard.release(KEYPAD_0); break;
+                case 191: if (!pressed[x]) NKROKeyboard.press(KEY_MENU); if (pressed[x]) NKROKeyboard.release(KEY_MENU); break;
+                case 192: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_MUTE); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_MUTE); break;
+                case 193: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_UP); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_UP); break;
+                case 194: if (!pressed[x]) NKROKeyboard.press(KEY_VOLUME_DOWN); if (pressed[x]) NKROKeyboard.release(KEY_VOLUME_DOWN); break;
                 default: if (!pressed[x]) NKROKeyboard.press(key); if (pressed[x]) NKROKeyboard.release(key); break;
             }
             // Same for unkey
             switch(unKey){
-                case KEY_ESC: NKROKeyboard.release(KEY_ESC); break;
-                case KEY_F1: NKROKeyboard.release(KEY_F1); break;
-                case KEY_F2: NKROKeyboard.release(KEY_F2); break;
-                case KEY_F3: NKROKeyboard.release(KEY_F3); break;
-                case KEY_F4: NKROKeyboard.release(KEY_F4); break;
-                case KEY_F5: NKROKeyboard.release(KEY_F5); break;
-                case KEY_F6: NKROKeyboard.release(KEY_F6); break;
-                case KEY_F7: NKROKeyboard.release(KEY_F7); break;
-                case KEY_F8: NKROKeyboard.release(KEY_F8); break;
-                case KEY_F9: NKROKeyboard.release(KEY_F9); break;
-                case KEY_F10: NKROKeyboard.release(KEY_F10); break;
-                case KEY_F11: NKROKeyboard.release(KEY_F11); break;
-                case KEY_F12: NKROKeyboard.release(KEY_F12); break;
-                case KEY_F13: NKROKeyboard.release(KEY_F13); break;
-                case KEY_F14: NKROKeyboard.release(KEY_F14); break;
-                case KEY_F15: NKROKeyboard.release(KEY_F15); break;
-                case KEY_F16: NKROKeyboard.release(KEY_F16); break;
-                case KEY_F17: NKROKeyboard.release(KEY_F17); break;
-                case KEY_F18: NKROKeyboard.release(KEY_F18); break;
-                case KEY_F19: NKROKeyboard.release(KEY_F19); break;
-                case KEY_F20: NKROKeyboard.release(KEY_F20); break;
-                case KEY_F21: NKROKeyboard.release(KEY_F21); break;
-                case KEY_F22: NKROKeyboard.release(KEY_F22); break;
-                case KEY_F23: NKROKeyboard.release(KEY_F23); break;
-                case KEY_F24: NKROKeyboard.release(KEY_F24); break;
-                case KEY_ENTER: NKROKeyboard.release(KEY_ENTER); break;
-                case KEY_BACKSPACE: NKROKeyboard.release(KEY_BACKSPACE); break;
-                case KEY_TAB: NKROKeyboard.release(KEY_TAB); break;
-                case KEY_PRINT: NKROKeyboard.release(KEY_PRINT); break;
-                case KEY_PAUSE: NKROKeyboard.release(KEY_PAUSE); break;
-                case KEY_INSERT: NKROKeyboard.release(KEY_INSERT); break;
-                case KEY_HOME: NKROKeyboard.release(KEY_HOME); break;
-                case KEY_PAGE_UP: NKROKeyboard.release(KEY_PAGE_UP); break;
-                case KEY_DELETE: NKROKeyboard.release(KEY_DELETE); break;
-                case KEY_END: NKROKeyboard.release(KEY_END); break;
-                case KEY_PAGE_DOWN: NKROKeyboard.release(KEY_PAGE_DOWN); break;
-                case KEY_RIGHT: NKROKeyboard.release(KEY_RIGHT); break;
-                case KEY_LEFT: NKROKeyboard.release(KEY_LEFT); break;
-                case KEY_DOWN: NKROKeyboard.release(KEY_DOWN); break;
-                case KEY_UP: NKROKeyboard.release(KEY_UP); break;
-                case KEYPAD_DIVIDE: NKROKeyboard.release(KEYPAD_DIVIDE); break;
-                case KEYPAD_MULTIPLY: NKROKeyboard.release(KEYPAD_MULTIPLY); break;
-                case KEYPAD_SUBTRACT: NKROKeyboard.release(KEYPAD_SUBTRACT); break;
-                case KEYPAD_ADD: NKROKeyboard.release(KEYPAD_ADD); break;
-                case KEYPAD_ENTER: NKROKeyboard.release(KEYPAD_ENTER); break;
-                case KEYPAD_1: NKROKeyboard.release(KEYPAD_1); break;
-                case KEYPAD_2: NKROKeyboard.release(KEYPAD_2); break;
-                case KEYPAD_3: NKROKeyboard.release(KEYPAD_3); break;
-                case KEYPAD_4: NKROKeyboard.release(KEYPAD_4); break;
-                case KEYPAD_5: NKROKeyboard.release(KEYPAD_5); break;
-                case KEYPAD_6: NKROKeyboard.release(KEYPAD_6); break;
-                case KEYPAD_7: NKROKeyboard.release(KEYPAD_7); break;
-                case KEYPAD_8: NKROKeyboard.release(KEYPAD_8); break;
-                case KEYPAD_9: NKROKeyboard.release(KEYPAD_9); break;
-                case KEYPAD_0: NKROKeyboard.release(KEYPAD_0); break;
-                case KEYPAD_DOT: NKROKeyboard.release(KEYPAD_DOT); break;
-                case KEY_MENU: NKROKeyboard.release(KEY_MENU); break;
-                case KEY_VOLUME_MUTE: NKROKeyboard.release(KEY_VOLUME_MUTE); break;
-                case KEY_VOLUME_UP: NKROKeyboard.release(KEY_VOLUME_UP); break;
-                case KEY_VOLUME_DOWN: NKROKeyboard.release(KEY_VOLUME_DOWN); break;
-                case KEY_LEFT_CTRL: NKROKeyboard.release(KEY_LEFT_CTRL); break;
-                case KEY_LEFT_SHIFT: NKROKeyboard.release(KEY_LEFT_SHIFT); break;
-                case KEY_LEFT_ALT: NKROKeyboard.release(KEY_LEFT_ALT); break;
-                case KEY_LEFT_GUI: NKROKeyboard.release(KEY_LEFT_GUI); break;
-                case KEY_RIGHT_CTRL: NKROKeyboard.release(KEY_RIGHT_CTRL); break;
-                case KEY_RIGHT_SHIFT: NKROKeyboard.release(KEY_RIGHT_SHIFT); break;
-                case KEY_RIGHT_ALT: NKROKeyboard.release(KEY_RIGHT_ALT); break;
-                case KEY_RIGHT_GUI: NKROKeyboard.release(KEY_RIGHT_GUI); break;
+                case 128: NKROKeyboard.release(KEY_LEFT_CTRL); break;
+                case 129: NKROKeyboard.release(KEY_LEFT_SHIFT); break;
+                case 130: NKROKeyboard.release(KEY_LEFT_ALT); break;
+                case 131: NKROKeyboard.release(KEY_LEFT_GUI); break;
+                case 132: NKROKeyboard.release(KEY_RIGHT_CTRL); break;
+                case 133: NKROKeyboard.release(KEY_RIGHT_SHIFT); break;
+                case 134: NKROKeyboard.release(KEY_RIGHT_ALT); break;
+                case 135: NKROKeyboard.release(KEY_RIGHT_GUI); break;
+                case 136: NKROKeyboard.release(KEY_ESC); break;
+                case 137: NKROKeyboard.release(KEY_F1); break;
+                case 138: NKROKeyboard.release(KEY_F2); break;
+                case 139: NKROKeyboard.release(KEY_F3); break;
+                case 140: NKROKeyboard.release(KEY_F4); break;
+                case 141: NKROKeyboard.release(KEY_F5); break;
+                case 142: NKROKeyboard.release(KEY_F6); break;
+                case 143: NKROKeyboard.release(KEY_F7); break;
+                case 144: NKROKeyboard.release(KEY_F8); break;
+                case 145: NKROKeyboard.release(KEY_F9); break;
+                case 146: NKROKeyboard.release(KEY_F10); break;
+                case 147: NKROKeyboard.release(KEY_F11); break;
+                case 148: NKROKeyboard.release(KEY_F12); break;
+                case 149: NKROKeyboard.release(KEY_F13); break;
+                case 150: NKROKeyboard.release(KEY_F14); break;
+                case 151: NKROKeyboard.release(KEY_F15); break;
+                case 152: NKROKeyboard.release(KEY_F16); break;
+                case 153: NKROKeyboard.release(KEY_F17); break;
+                case 154: NKROKeyboard.release(KEY_F18); break;
+                case 155: NKROKeyboard.release(KEY_F19); break;
+                case 156: NKROKeyboard.release(KEY_F20); break;
+                case 157: NKROKeyboard.release(KEY_F21); break;
+                case 158: NKROKeyboard.release(KEY_F22); break;
+                case 159: NKROKeyboard.release(KEY_F23); break;
+                case 160: NKROKeyboard.release(KEY_F24); break;
+                case 161: NKROKeyboard.release(KEY_ENTER); break;
+                case 162: NKROKeyboard.release(KEY_BACKSPACE); break;
+                case 163: NKROKeyboard.release(KEY_TAB); break;
+                case 164: NKROKeyboard.release(KEY_PRINT); break;
+                case 165: NKROKeyboard.release(KEY_PAUSE); break;
+                case 166: NKROKeyboard.release(KEY_INSERT); break;
+                case 167: NKROKeyboard.release(KEY_HOME); break;
+                case 168: NKROKeyboard.release(KEY_PAGE_UP); break;
+                case 169: NKROKeyboard.release(KEY_DELETE); break;
+                case 170: NKROKeyboard.release(KEY_END); break;
+                case 171: NKROKeyboard.release(KEY_PAGE_DOWN); break;
+                case 172: NKROKeyboard.release(KEY_RIGHT); break;
+                case 173: NKROKeyboard.release(KEY_LEFT); break;
+                case 174: NKROKeyboard.release(KEY_DOWN); break;
+                case 175: NKROKeyboard.release(KEY_UP); break;
+                case 176: NKROKeyboard.release(KEYPAD_DIVIDE); break;
+                case 177: NKROKeyboard.release(KEYPAD_MULTIPLY); break;
+                case 178: NKROKeyboard.release(KEYPAD_SUBTRACT); break;
+                case 179: NKROKeyboard.release(KEYPAD_ADD); break;
+                case 180: NKROKeyboard.release(KEYPAD_ENTER); break;
+                case 181: NKROKeyboard.release(KEYPAD_1); break;
+                case 182: NKROKeyboard.release(KEYPAD_2); break;
+                case 183: NKROKeyboard.release(KEYPAD_3); break;
+                case 184: NKROKeyboard.release(KEYPAD_4); break;
+                case 185: NKROKeyboard.release(KEYPAD_5); break;
+                case 186: NKROKeyboard.release(KEYPAD_6); break;
+                case 187: NKROKeyboard.release(KEYPAD_7); break;
+                case 188: NKROKeyboard.release(KEYPAD_8); break;
+                case 189: NKROKeyboard.release(KEYPAD_9); break;
+                case 190: NKROKeyboard.release(KEYPAD_0); break;
+                case 191: NKROKeyboard.release(KEY_MENU); break;
+                case 192: NKROKeyboard.release(KEY_VOLUME_MUTE); break;
+                case 193: NKROKeyboard.release(KEY_VOLUME_UP); break;
+                case 194: NKROKeyboard.release(KEY_VOLUME_DOWN); break;
                 default: NKROKeyboard.release(unKey); break;
             }
             // Save last pressed state to buffer
@@ -439,7 +461,7 @@ int count;
 void speedCheck() {
     count++;
     if ((millis() - speedCheckMillis) > 1000){
-        SerialUSB.println(count);
+        SERIALAPI.println(count);
         count = 0;
         speedCheckMillis = millis();
     }
@@ -472,73 +494,121 @@ const String custExp[]={
     "aqua=128, blue=160, purple=192, and pink=224"
 };
 const String remapExp[]={
-    "Please enter",
-    ""
+    "If you're trying to map a key that doesn't print a character,",
+    "please use one of the codes below with a ':' in front of it."
 };
+
+void keyTable() {
+    // Print welcome message
+    for (byte x=0;x<2;x++) SERIALAPI.println(remapExp[x]);
+    byte lineLength = 0;
+    for (int y = 0; y < 69; y++) SERIALAPI.print("-");
+    SERIALAPI.println();
+    for (int x = 0; x <= 66; x++) {
+        if (lineLength == 0) SERIALAPI.print("| ");
+        // Make every line wrap at 30 characters
+        byte nameLength = friendlyKeys[x].length(); // save as variable within for loop for repeated use
+        lineLength += nameLength + 6;
+        SERIALAPI.print(friendlyKeys[x]);
+        nameLength = 9 - nameLength;
+        for (nameLength; nameLength > 0; nameLength--) { // Print a space
+            SERIALAPI.print(" ");
+            lineLength++;
+        }
+        if (x > 9) lineLength++;
+        SERIALAPI.print(" = ");
+        if (x <= 9) {
+            SERIALAPI.print(" ");
+            lineLength+=2;
+        }
+        SERIALAPI.print(x);
+        SERIALAPI.print(" | ");
+        if (lineLength > 55) {
+            lineLength = 0;
+            SERIALAPI.println();
+        }
+    }
+    // If line isn't finished, create newline
+    if (lineLength != 0) SERIALAPI.println();
+    for (int y = 0; y < 69; y++) SERIALAPI.print("-");
+    SERIALAPI.println();
+    SERIALAPI.println("For example, enter :8 to map escape");
+    SERIALAPI.println();
+}
+
+void keyLookup(uint8_t inByte) {
+    for (uint8_t x=0; x<=66;x++) {
+        if (inByte == 128+x) { SERIALAPI.print(friendlyKeys[x]); return; }
+    }
+    SERIALAPI.print(char(inByte));
+}
 
 void printBlock(byte block) {
     switch(block){
         // Greeter message
-        case 0:
-            for (byte x=0;x<2;x++) SerialUSB.println(greet[x]);
+        case 0: // Greeter
+            for (byte x=0;x<2;x++) SERIALAPI.println(greet[x]);
             break;
-        case 1:
-            for (byte x=0;x<6;x++) SerialUSB.println(menu[x]);
+        case 1: // Main menu
+            for (byte x=0;x<6;x++) SERIALAPI.println(menu[x]);
             break;
-        case 2:
-            for (byte x=0;x<5;x++) SerialUSB.println(LEDmodes[x]);
+        case 2: // LED Mode
+            for (byte x=0;x<5;x++) SERIALAPI.println(LEDmodes[x]);
             break;
-        case 3:
-            SerialUSB.println("Enter a brightness vaule between 0 and 255.");
-            SerialUSB.print("Current value: ");
-            SerialUSB.print(bMax);
+        case 3: // Brightness
+            SERIALAPI.println("Enter a brightness value between 0 and 255.");
+            SERIALAPI.print("Current value: ");
+            SERIALAPI.print(bMax);
             break;
-        case 4:
-            for (byte x=0;x<4;x++) SerialUSB.println(custExp[x]);
-            SerialUSB.print("Current values: ");
+        case 4: // Custom colors
+            for (byte x=0;x<4;x++) SERIALAPI.println(custExp[x]);
+            SERIALAPI.print("Current values: ");
             for (byte x=0;x<numkeys;x++) {
-                SerialUSB.print(custColor[x]);
-                if (x != numkeys-1) SerialUSB.print(", ");
+                SERIALAPI.print(custColor[x]);
+                if (x != numkeys-1) SERIALAPI.print(", ");
             }
             break;
-        case 5:
+        case 5: // Remapper
+            // Print key names and numbers
+            SERIALAPI.println();
+            SERIALAPI.println("Current values: ");
             for (byte y=0;y<2;y++) {
-                SerialUSB.print("Layer ");
-                SerialUSB.print(y+1);
-                SerialUSB.print(": ");
-                for (byte x=0;x<numkeys;x++) { SerialUSB.print(char(mapping[y][x])); if (x<numkeys-1) SerialUSB.print(", "); }
-                SerialUSB.println();
+                SERIALAPI.print("Layer ");
+                SERIALAPI.print(y+1);
+                SERIALAPI.print(": ");
+                for (byte x=0;x<numkeys;x++) { keyLookup(mapping[y][x]); if (x<numkeys-1) SERIALAPI.print(", "); }
+                SERIALAPI.println();
             }
             break;
     }
     // Add extra line break
-    SerialUSB.println();
+    SERIALAPI.println();
 }
 
 const String modeNames[]={ "Cycle", "Reactive", "Custom", "BPS" };
 void ledMenu() {
     printBlock(2);
     while(true){
-        int incomingByte = SerialUSB.read();
+        int incomingByte = SERIALAPI.read();
         if (incomingByte > 0){
             if (incomingByte>=48&&incomingByte<=51) {
                 ledMode = incomingByte-48;
-                SerialUSB.print("Selected ");
-                SerialUSB.println(modeNames[ledMode]);
-                SerialUSB.println();
+                SERIALAPI.print("Selected ");
+                SERIALAPI.println(modeNames[ledMode]);
+                SERIALAPI.println();
                 return;
             }
-            else SerialUSB.println("Please enter a valid value.");
+            else SERIALAPI.println("Please enter a valid value.");
         }
     }
 }
 
-String inString = "";    // string to hold input
-bool start=0;
 // Converts incoming string chars to a byte
 int parseByte(){
+    String inString = "";    // string to hold input
+    bool start=0;
     while (true) {
-        int incomingByte = SerialUSB.read();
+        int incomingByte = SERIALAPI.read();
         if (incomingByte > 0) {
             start=1;
             // Parse input
@@ -552,7 +622,42 @@ int parseByte(){
             int value = inString.toInt();
             inString = "";
             if (value >= 0 && value <= 255) { start=0; return value; }
-            else { start = 0; SerialUSB.print(value); SerialUSB.println(" is invalid. Please enter a valid value."); }
+            else { start = 0; SERIALAPI.print(value); SERIALAPI.println(" is invalid. Please enter a valid value."); }
+        }
+    }
+}
+
+byte parseKey() {
+    String inString = "";    // string to hold input
+    bool start=0;
+    while (true) {
+        // Store incoming byte from Serial connection
+        int inByte = SERIALAPI.read();
+        // If the first character is a colon
+        if (inByte == 58 && start == 0) {
+            start = 1;
+            // Only append it to the string if there's nothing after it
+        }
+        // If the first byte isn't a colon, just pass it through.
+        else if (inByte > 0 && start == 0) {
+            return inByte;
+        }
+        // If the first byte was a colon, start appending.
+        else if (inByte > 0 && start == 1) {
+            // Append if number, otherwise complain and start over.
+            if (isDigit(inByte)) {
+              // convert the incoming byte to a char and add it to the string:
+              inString += (char)inByte;
+            }
+            else { inString=""; start=0; SERIALAPI.println("Ya done goofed."); }
+        }
+        // If block is finished being sent
+        if (inByte <= 0 && start == 1) {
+            // Convert string to int
+            int value = inString.toInt();
+            if (value >= 0 && value <= 66) return 128+value;
+            // Otherwise, restart
+            else { inString=""; start = 0; SERIALAPI.print(value); SERIALAPI.println(" is invalid. Please enter a valid value."); }
         }
     }
 }
@@ -561,9 +666,9 @@ void brightMenu(){
     printBlock(3);
     while(true){
         bMax = parseByte();
-        SerialUSB.print("Entered value: ");
-        SerialUSB.println(bMax);
-        SerialUSB.println();
+        SERIALAPI.print("Entered value: ");
+        SERIALAPI.println(bMax);
+        SERIALAPI.println();
         return;
     }
 }
@@ -572,15 +677,15 @@ void customMenu(){
     printBlock(4);
     while(true){
         for(byte x=0;x<numkeys;x++){
-            SerialUSB.print("Color for key ");
-            SerialUSB.print(x+1);
-            SerialUSB.print(": ");
+            SERIALAPI.print("Color for key ");
+            SERIALAPI.print(x+1);
+            SERIALAPI.print(": ");
             byte color = parseByte();
-            SerialUSB.println(color);
+            SERIALAPI.println(color);
             custColor[x] = color;
             effects(10,2);
         }
-        SerialUSB.println();
+        SERIALAPI.println();
         // Give user a second to see new color.
         // Confirmation would make more sense here.
         delay(1000);
@@ -593,28 +698,23 @@ void remapMenu(){
     // Main loop
     while(true){
     byte layer;
-    SerialUSB.println("Which layer would you like to remap?");
-    SerialUSB.println("0 to exit");
-    SerialUSB.println("1 to remap layer 1");
-    SerialUSB.println("2 to remap layer 2");
+    SERIALAPI.println("Which layer would you like to remap?");
+    SERIALAPI.println("0 to exit");
+    SERIALAPI.println("1 to remap layer 1");
+    SERIALAPI.println("2 to remap layer 2");
     printBlock(5);
 
     // Select layer
     bool layerCheck = 0;
     while(layerCheck == 0){
-        int incomingByte = SerialUSB.read();
+        int incomingByte = SERIALAPI.read();
         if (incomingByte > 0){
             if (incomingByte>=48&&incomingByte<=50) {
                 layer = incomingByte-48;
                 if (layer == 0) layerCheck = 1; // Return before printing if layer is 0
-                else {
-                    SerialUSB.print("Layer ");
-                    SerialUSB.print(layer);
-                    SerialUSB.print(": ");
-                    layerCheck = 1;
-                }
+                else layerCheck = 1;
             }
-            else SerialUSB.println("Please enter a valid value.");
+            else SERIALAPI.println("Please enter a valid value.");
         }
     }
 
@@ -622,37 +722,33 @@ void remapMenu(){
     if (layer == 0) return;
 
     // Remap selected layer
+    keyTable();
+    SERIALAPI.print("Layer ");
+    SERIALAPI.print(layer);
+    SERIALAPI.print(": ");
     for(byte x=0;x<numkeys;x++){
-        bool mapCheck = 0;
-        while(mapCheck == 0){
-            int incomingByte = SerialUSB.read();
-            if (incomingByte>=32&&incomingByte<=126) {
-                byte key = incomingByte;
-                SerialUSB.print(char(key));
-                // Subtract 1 because array is 0 indexed
-                mapping[layer-1][x] = key;
-                // Separate by comma if not last value
-                if (x<numkeys-1) SerialUSB.print(", ");
-                // Otherwise, create newline
-                else SerialUSB.println();
-                mapCheck = 1;
-            }
-            else if(incomingByte > 0) SerialUSB.println("Please enter a valid value.");
-        }
+        byte key = parseKey();
+        keyLookup(key);
+        // Subtract 1 because array is 0 indexed
+        mapping[layer-1][x] = key;
+        // Separate by comma if not last value
+        if (x<numkeys-1) SERIALAPI.print(", ");
+        // Otherwise, create newline
+        else SERIALAPI.println();
     }
-    SerialUSB.println();
+    SERIALAPI.println();
     }
 }
 
 void mainmenu() {
     printBlock(1);
     while(true){
-        int incomingByte = SerialUSB.read();
+        int incomingByte = SERIALAPI.read();
         effects(5, 0);
         if (isDigit(incomingByte)){
             switch(incomingByte-48){
                 case(0):
-                    SerialUSB.println("Settings saved! Exiting...");
+                    SERIALAPI.println("Settings saved! Exiting...");
                     eepromUpdate();
                     printBlock(0);
                     pm = millis(); // Reset idle counter post-config
@@ -675,7 +771,7 @@ void mainmenu() {
                     printBlock(1);
                     break;
                 default:
-                    SerialUSB.println("Please enter a valid value.");
+                    SERIALAPI.println("Please enter a valid value.");
                     break;
             }
         }
@@ -688,13 +784,13 @@ void serialCheck() {
     // Check for serial connection every 1s
     if ((millis() - remapMillis) > 1000){
         // If the serial monitor is opened, greet the user.
-        if (SerialUSB && set == 0) { printBlock(0); set=1; }
+        if (SERIALAPI && set == 0) { printBlock(0); set=1; }
         // If closed, reset greet message.
-        if (!SerialUSB) set = 0;
+        if (!SERIALAPI) set = 0;
 
         // Check incoming character if exists
-        if (SerialUSB.available() > 0) {
-            byte incomingByte = SerialUSB.read();
+        if (SERIALAPI.available() > 0) {
+            byte incomingByte = SERIALAPI.read();
             // If it's not 0, repeat the greet message
             if (incomingByte != 48) printBlock(0);
             // Otherwise, enter the menu.
@@ -720,6 +816,6 @@ void loop() {
     effects(10, ledMode);
     idle();
     // Debug check for loops per second
-    speedCheck();
+    //speedCheck();
     serialCheck();
 }

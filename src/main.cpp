@@ -1,14 +1,9 @@
 // Libraries
 #include <Arduino.h>
-#if defined AVR // AVR specific
-    #include <EEPROM.h>
-#else // SAMD specific
-    #include <FlashAsEEPROM.h>
-    #include <Adafruit_FreeTouch.h>
-#endif
 #include <Bounce2.h>
 #include <HID-Project.h>
 #include <FastLED.h>
+#include <models.h>
 
 // Initialize inputs and LEDs
 Bounce * bounce = new Bounce[numkeys+1];
@@ -16,17 +11,6 @@ Bounce * bounce = new Bounce[numkeys+1];
     Adafruit_FreeTouch qt = Adafruit_FreeTouch(TPIN, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 #endif
 CRGBArray<numkeys> leds;
-
-// These defines should move to a separate file for cleanup
-#ifdef AVR
-const uint8_t pins[] = { 2, 3, 7, 9, 10, 11, 12, 4 };
-#endif
-#ifdef TRINKETM0
-const uint8_t pins[] = { 0, 2, 20, 19, 3 };
-#endif
-#ifdef SAMD21MINI
-const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, A3 };
-#endif
 
 #ifdef KM7
 uint8_t mapping[][7] = {
@@ -85,12 +69,9 @@ const String friendlyKeys[] = {
 
 void eepromInit(){
     // If first boot after programming
-#ifndef AVR
-    if (!EEPROM.isValid()) {
-#else
+    // Use version checking because isValid only works with FlashStorage
     if (EEPROM.read(0) != version){
         EEPROM.write(0, version);
-#endif
         // Assign default values
         EEPROM.write(1, bMax);
         b = bMax;
@@ -106,9 +87,7 @@ void eepromInit(){
             }
         }
         // Write values
-#ifndef AVR
-        EEPROM.commit();
-#endif
+        COMMIT
     }
     // Otherwise, restore values
     else {
@@ -139,14 +118,12 @@ void eepromUpdate(){
             if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
         }
     }
-#ifndef AVR
-    EEPROM.commit();
-#endif
+    COMMIT
 }
 
 void setup() {
     // Set the serial baudrate
-    SERIALAPI.begin(9600);
+    Serial.begin(9600);
 
     // Start LEDs
     FastLED.addLeds<NEOPIXEL, NPPIN>(leds, numkeys);
@@ -200,11 +177,11 @@ void keyboard() {
         if ( pressed[x] != lastPressed[x] ){
 #ifdef DEBUG
             // Print when key state changes.
-            SERIALAPI.print("Key ");
-            SERIALAPI.print(x+1);
-            SERIALAPI.print(" has been ");
-            if (pressed[x] == 0) SERIALAPI.println("pressed.");
-            if (pressed[x] == 1) SERIALAPI.println("released.");
+            Serial.print("Key ");
+            Serial.print(x+1);
+            Serial.print(" has been ");
+            if (pressed[x] == 0) Serial.println("pressed.");
+            if (pressed[x] == 1) Serial.println("released.");
 #endif
             if (!pressed[x]) bpsCount++;
             pm = millis();
@@ -462,7 +439,7 @@ int count;
 void speedCheck() {
     count++;
     if ((millis() - speedCheckMillis) > 1000){
-        SERIALAPI.println(count);
+        Serial.println(count);
         count = 0;
         speedCheckMillis = millis();
     }
@@ -470,52 +447,52 @@ void speedCheck() {
 
 // Menu text
 void greet(){
-    SERIALAPI.println("Press 0 to enter the configurator.");
-    SERIALAPI.println("(Keys on the keypad are disabled while the configurator is open.)");
+    Serial.println("Press 0 to enter the configurator.");
+    Serial.println("(Keys on the keypad are disabled while the configurator is open.)");
 }
 void menu(){
-    SERIALAPI.println("Welcome to the configurator! Enter:");
-    SERIALAPI.println("0 to save and exit");
-    SERIALAPI.println("1 to remap keys");
-    SERIALAPI.println("2 to set the LED mode");
-    SERIALAPI.println("3 to set the brightness");
-    SERIALAPI.println("4 to set the custom colors");
+    Serial.println("Welcome to the configurator! Enter:");
+    Serial.println("0 to save and exit");
+    Serial.println("1 to remap keys");
+    Serial.println("2 to set the LED mode");
+    Serial.println("3 to set the brightness");
+    Serial.println("4 to set the custom colors");
 }
 void LEDmodes(){
-    SERIALAPI.println("Select an LED mode. Enter:");
-    SERIALAPI.println("0 for Cycle");
-    SERIALAPI.println("1 for Reactive");
-    SERIALAPI.println("2 for Custom");
-    SERIALAPI.println("3 for BPS");
+    Serial.println("Select an LED mode. Enter:");
+    Serial.println("0 for Cycle");
+    Serial.println("1 for Reactive");
+    Serial.println("2 for Custom");
+    Serial.println("3 for BPS");
 }
 void custExp(){
-    SERIALAPI.println("Please enter a color value for the respective key.");
-    SERIALAPI.println("Colors are expressed as a 0-255 value, where:");
-    SERIALAPI.println("red=0, orange=32, yellow=64, green=96");
-    SERIALAPI.println("aqua=128, blue=160, purple=192, and pink=224");
+    Serial.println("Please enter a color value for the respective key.");
+    Serial.println("Colors are expressed as a 0-255 value, where:");
+    Serial.println("red=0, orange=32, yellow=64, green=96");
+    Serial.println("aqua=128, blue=160, purple=192, and pink=224");
 }
 void remapExp(){
-    SERIALAPI.println("If you're trying to map a key that doesn't print a character,");
-    SERIALAPI.println("please use one of the codes below with a ':' in front of it.");
+    Serial.println("If you're trying to map a key that doesn't print a character,");
+    Serial.println("please use one of the codes below with a ':' in front of it.");
 }
 void avrTable(){
-    SERIALAPI.println("L_CTRL = 0|L_SHIFT = 1|L_ALT  = 2|L_GUI  = 3");
-    SERIALAPI.println("R_CTRL = 4|R_SHIFT = 5|R_ALT  = 6|R_GUI  = 7");
-    SERIALAPI.println("ESC    = 8|F1      = 9|F2     =10|F3     =11");
-    SERIALAPI.println("F4     =12|F5      =13|F6     =14|F7     =15");
-    SERIALAPI.println("F8     =16|F9      =17|F10    =18|F11    =19");
-    SERIALAPI.println("F12    =20|F13     =21|F14    =22|F15    =23");
-    SERIALAPI.println("F16    =24|F17     =25|F18    =26|F19    =27");
-    SERIALAPI.println("F20    =28|F21     =29|F22    =30|F23    =31");
-    SERIALAPI.println("F24    =32|ENTER   =33|BACKSP =34|TAB    =35");
-    SERIALAPI.println("PRINT  =36|PAUSE   =37|INSERT =38|HOME   =39");
-    SERIALAPI.println("PAGE_UP=40|DELETE  =41|END    =42|PAGE_DN=43");
-    SERIALAPI.println("RIGHT  =44|LEFT    =45|DOWN   =46|UP     =47");
-    SERIALAPI.println("PAD_DIV=48|PAD_MULT=49|PAD_SUB=50|PAD_ADD=51");
-    SERIALAPI.println("PAD_ENT=52|PAD_1   =53|PAD_2  =54|PAD_3  =55");
-    SERIALAPI.println("PAD_4  =56|PAD_5   =57|PAD_6  =58|PAD_7  =59");
-    SERIALAPI.println("PAD_8  =60|PAD_9   =61|PAD_0  =62|MENU   =63");
-    SERIALAPI.println("V_MUTE =64|V_UP    =65|V_DOWN =66|          ");
+    Serial.println("L_CTRL = 0|L_SHIFT = 1|L_ALT  = 2|L_GUI  = 3");
+    Serial.println("R_CTRL = 4|R_SHIFT = 5|R_ALT  = 6|R_GUI  = 7");
+    Serial.println("ESC    = 8|F1      = 9|F2     =10|F3     =11");
+    Serial.println("F4     =12|F5      =13|F6     =14|F7     =15");
+    Serial.println("F8     =16|F9      =17|F10    =18|F11    =19");
+    Serial.println("F12    =20|F13     =21|F14    =22|F15    =23");
+    Serial.println("F16    =24|F17     =25|F18    =26|F19    =27");
+    Serial.println("F20    =28|F21     =29|F22    =30|F23    =31");
+    Serial.println("F24    =32|ENTER   =33|BACKSP =34|TAB    =35");
+    Serial.println("PRINT  =36|PAUSE   =37|INSERT =38|HOME   =39");
+    Serial.println("PAGE_UP=40|DELETE  =41|END    =42|PAGE_DN=43");
+    Serial.println("RIGHT  =44|LEFT    =45|DOWN   =46|UP     =47");
+    Serial.println("PAD_DIV=48|PAD_MULT=49|PAD_SUB=50|PAD_ADD=51");
+    Serial.println("PAD_ENT=52|PAD_1   =53|PAD_2  =54|PAD_3  =55");
+    Serial.println("PAD_4  =56|PAD_5   =57|PAD_6  =58|PAD_7  =59");
+    Serial.println("PAD_8  =60|PAD_9   =61|PAD_0  =62|MENU   =63");
+    Serial.println("V_MUTE =64|V_UP    =65|V_DOWN =66|          ");
 }
 
 void keyTable() {
@@ -523,52 +500,52 @@ void keyTable() {
     remapExp();
 #ifndef AVR
     uint8_t lineLength = 0;
-    for (int y = 0; y < 69; y++) SERIALAPI.print("-");
-    SERIALAPI.println();
+    for (int y = 0; y < 69; y++) Serial.print("-");
+    Serial.println();
     for (int x = 0; x <= 66; x++) {
-        if (lineLength == 0) SERIALAPI.print("| ");
+        if (lineLength == 0) Serial.print("| ");
         // Make every line wrap at 30 characters
         uint8_t nameLength = friendlyKeys[x].length(); // save as variable within for loop for repeated use
         lineLength += nameLength + 6;
-        SERIALAPI.print(friendlyKeys[x]);
+        Serial.print(friendlyKeys[x]);
         nameLength = 9 - nameLength;
         for (nameLength; nameLength > 0; nameLength--) { // Print a space
-            SERIALAPI.print(" ");
+            Serial.print(" ");
             lineLength++;
         }
         if (x > 9) lineLength++;
-        SERIALAPI.print(" = ");
+        Serial.print(" = ");
         if (x <= 9) {
-            SERIALAPI.print(" ");
+            Serial.print(" ");
             lineLength+=2;
         }
-        SERIALAPI.print(x);
-        SERIALAPI.print(" | ");
+        Serial.print(x);
+        Serial.print(" | ");
         if (lineLength > 55) {
             lineLength = 0;
-            SERIALAPI.println();
+            Serial.println();
         }
     }
     // If line isn't finished, create newline
-    if (lineLength != 0) SERIALAPI.println();
-    for (int y = 0; y < 69; y++) SERIALAPI.print("-");
-    SERIALAPI.println();
+    if (lineLength != 0) Serial.println();
+    for (int y = 0; y < 69; y++) Serial.print("-");
+    Serial.println();
 #else
     avrTable();
 #endif
-    SERIALAPI.println("For example, enter :8 to map escape");
-    SERIALAPI.println();
+    Serial.println("For example, enter :8 to map escape");
+    Serial.println();
 }
 
 void keyLookup(uint8_t inByte) {
     for (uint8_t x=0; x<=66;x++) {
 #ifndef AVR
-        if (inByte == 128+x) { SERIALAPI.print(friendlyKeys[x]); return; }
+        if (inByte == 128+x) { Serial.print(friendlyKeys[x]); return; }
 #else
-        if (inByte == 128+x) { SERIALAPI.print(":"); SERIALAPI.print(x); return; }
+        if (inByte == 128+x) { Serial.print(":"); Serial.print(x); return; }
 #endif
     }
-    SERIALAPI.print(char(inByte));
+    Serial.print(char(inByte));
 }
 
 void printBlock(uint8_t block) {
@@ -584,49 +561,49 @@ void printBlock(uint8_t block) {
             LEDmodes();
             break;
         case 3: // Brightness
-            SERIALAPI.println("Enter a brightness value between 0 and 255.");
-            SERIALAPI.print("Current value: ");
-            SERIALAPI.print(bMax);
+            Serial.println("Enter a brightness value between 0 and 255.");
+            Serial.print("Current value: ");
+            Serial.print(bMax);
             break;
         case 4: // Custom colors
             custExp();
-            SERIALAPI.print("Current values: ");
+            Serial.print("Current values: ");
             for (uint8_t x=0;x<numkeys;x++) {
-                SERIALAPI.print(custColor[x]);
-                if (x != numkeys-1) SERIALAPI.print(", ");
+                Serial.print(custColor[x]);
+                if (x != numkeys-1) Serial.print(", ");
             }
             break;
         case 5: // Remapper
             // Print key names and numbers
-            SERIALAPI.println();
-            SERIALAPI.println("Current values: ");
+            Serial.println();
+            Serial.println("Current values: ");
             for (uint8_t y=0;y<2;y++) {
-                SERIALAPI.print("Layer ");
-                SERIALAPI.print(y+1);
-                SERIALAPI.print(": ");
-                for (uint8_t x=0;x<numkeys;x++) { keyLookup(mapping[y][x]); if (x<numkeys-1) SERIALAPI.print(", "); }
-                SERIALAPI.println();
+                Serial.print("Layer ");
+                Serial.print(y+1);
+                Serial.print(": ");
+                for (uint8_t x=0;x<numkeys;x++) { keyLookup(mapping[y][x]); if (x<numkeys-1) Serial.print(", "); }
+                Serial.println();
             }
             break;
     }
     // Add extra line break
-    SERIALAPI.println();
+    Serial.println();
 }
 
 const String modeNames[]={ "Cycle", "Reactive", "Custom", "BPS" };
 void ledMenu() {
     printBlock(2);
     while(true){
-        int incomingByte = SERIALAPI.read();
+        int incomingByte = Serial.read();
         if (incomingByte > 0){
             if (incomingByte>=48&&incomingByte<=51) {
                 ledMode = incomingByte-48;
-                SERIALAPI.print("Selected ");
-                SERIALAPI.println(modeNames[ledMode]);
-                SERIALAPI.println();
+                Serial.print("Selected ");
+                Serial.println(modeNames[ledMode]);
+                Serial.println();
                 return;
             }
-            else SERIALAPI.println("Please enter a valid value.");
+            else Serial.println("Please enter a valid value.");
         }
     }
 }
@@ -636,7 +613,7 @@ int parseByte(){
     String inString = "";    // string to hold input
     bool start=0;
     while (true) {
-        int incomingByte = SERIALAPI.read();
+        int incomingByte = Serial.read();
         if (incomingByte > 0) {
             start=1;
             // Parse input
@@ -650,7 +627,7 @@ int parseByte(){
             int value = inString.toInt();
             inString = "";
             if (value >= 0 && value <= 255) { start=0; return value; }
-            else { start = 0; SERIALAPI.print(value); SERIALAPI.println(" is invalid. Please enter a valid value."); }
+            else { start = 0; Serial.print(value); Serial.println(" is invalid. Please enter a valid value."); }
         }
     }
 }
@@ -660,7 +637,7 @@ uint8_t parseKey() {
     bool start=0;
     while (true) {
         // Store incoming byte from Serial connection
-        int inByte = SERIALAPI.read();
+        int inByte = Serial.read();
         // If the first character is a colon
         if (inByte == 58 && start == 0) {
             start = 1;
@@ -677,7 +654,7 @@ uint8_t parseKey() {
               // convert the incoming byte to a char and add it to the string:
               inString += (char)inByte;
             }
-            else { inString=""; start=0; SERIALAPI.println("Ya done goofed."); }
+            else { inString=""; start=0; Serial.println("Ya done goofed."); }
         }
         // If block is finished being sent
         if (inByte <= 0 && start == 1) {
@@ -685,7 +662,7 @@ uint8_t parseKey() {
             int value = inString.toInt();
             if (value >= 0 && value <= 66) return 128+value;
             // Otherwise, restart
-            else { inString=""; start = 0; SERIALAPI.print(value); SERIALAPI.println(" is invalid. Please enter a valid value."); }
+            else { inString=""; start = 0; Serial.print(value); Serial.println(" is invalid. Please enter a valid value."); }
         }
     }
 }
@@ -694,9 +671,9 @@ void brightMenu(){
     printBlock(3);
     while(true){
         bMax = parseByte();
-        SERIALAPI.print("Entered value: ");
-        SERIALAPI.println(bMax);
-        SERIALAPI.println();
+        Serial.print("Entered value: ");
+        Serial.println(bMax);
+        Serial.println();
         return;
     }
 }
@@ -705,15 +682,15 @@ void customMenu(){
     printBlock(4);
     while(true){
         for(uint8_t x=0;x<numkeys;x++){
-            SERIALAPI.print("Color for key ");
-            SERIALAPI.print(x+1);
-            SERIALAPI.print(": ");
+            Serial.print("Color for key ");
+            Serial.print(x+1);
+            Serial.print(": ");
             uint8_t color = parseByte();
-            SERIALAPI.println(color);
+            Serial.println(color);
             custColor[x] = color;
             effects(10,2);
         }
-        SERIALAPI.println();
+        Serial.println();
         // Give user a second to see new color.
         // Confirmation would make more sense here.
         delay(1000);
@@ -726,23 +703,23 @@ void remapMenu(){
     // Main loop
     while(true){
     uint8_t layer;
-    SERIALAPI.println("Which layer would you like to remap?");
-    SERIALAPI.println("0 to exit");
-    SERIALAPI.println("1 to remap layer 1");
-    SERIALAPI.println("2 to remap layer 2");
+    Serial.println("Which layer would you like to remap?");
+    Serial.println("0 to exit");
+    Serial.println("1 to remap layer 1");
+    Serial.println("2 to remap layer 2");
     printBlock(5);
 
     // Select layer
     bool layerCheck = 0;
     while(layerCheck == 0){
-        int incomingByte = SERIALAPI.read();
+        int incomingByte = Serial.read();
         if (incomingByte > 0){
             if (incomingByte>=48&&incomingByte<=50) {
                 layer = incomingByte-48;
                 if (layer == 0) layerCheck = 1; // Return before printing if layer is 0
                 else layerCheck = 1;
             }
-            else SERIALAPI.println("Please enter a valid value.");
+            else Serial.println("Please enter a valid value.");
         }
     }
 
@@ -751,32 +728,32 @@ void remapMenu(){
 
     // Remap selected layer
     keyTable();
-    SERIALAPI.print("Layer ");
-    SERIALAPI.print(layer);
-    SERIALAPI.print(": ");
+    Serial.print("Layer ");
+    Serial.print(layer);
+    Serial.print(": ");
     for(uint8_t x=0;x<numkeys;x++){
         uint8_t key = parseKey();
         keyLookup(key);
         // Subtract 1 because array is 0 indexed
         mapping[layer-1][x] = key;
         // Separate by comma if not last value
-        if (x<numkeys-1) SERIALAPI.print(", ");
+        if (x<numkeys-1) Serial.print(", ");
         // Otherwise, create newline
-        else SERIALAPI.println();
+        else Serial.println();
     }
-    SERIALAPI.println();
+    Serial.println();
     }
 }
 
 void mainmenu() {
     printBlock(1);
     while(true){
-        int incomingByte = SERIALAPI.read();
+        int incomingByte = Serial.read();
         effects(5, 0);
         if (isDigit(incomingByte)){
             switch(incomingByte-48){
                 case(0):
-                    SERIALAPI.println("Settings saved! Exiting...");
+                    Serial.println("Settings saved! Exiting...");
                     eepromUpdate();
                     printBlock(0);
                     pm = millis(); // Reset idle counter post-config
@@ -799,7 +776,7 @@ void mainmenu() {
                     printBlock(1);
                     break;
                 default:
-                    SERIALAPI.println("Please enter a valid value.");
+                    Serial.println("Please enter a valid value.");
                     break;
             }
         }
@@ -812,13 +789,13 @@ void serialCheck() {
     // Check for serial connection every 1s
     if ((millis() - remapMillis) > 1000){
         // If the serial monitor is opened, greet the user.
-        if (SERIALAPI && set == 0) { printBlock(0); set=1; }
+        if (Serial && set == 0) { printBlock(0); set=1; }
         // If closed, reset greet message.
-        if (!SERIALAPI) set = 0;
+        if (!Serial) set = 0;
 
         // Check incoming character if exists
-        if (SERIALAPI.available() > 0) {
-            uint8_t incomingByte = SERIALAPI.read();
+        if (Serial.available() > 0) {
+            uint8_t incomingByte = Serial.read();
             // If it's not 0, repeat the greet message
             if (incomingByte != 48) printBlock(0);
             // Otherwise, enter the menu.

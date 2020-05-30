@@ -20,6 +20,11 @@ const uint8_t pins[] = { 3, 4, 1 };
 #define TPIN 1
 #endif
 
+// Dotstar for all trinket-based models
+#if defined (ADAFRUIT_TRINKET_M0)
+CRGB ds[1];
+#endif
+
 // Pins for all newer models
 #ifdef SAMD21MINI
 const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, 0 };
@@ -45,20 +50,49 @@ Adafruit_FreeTouch qt = Adafruit_FreeTouch(TPIN, OVERSAMPLE_8, RESISTOR_50K, FRE
 #endif
 
 
+//// Mapping nicknames
+// This is only used here
+#define SK_LEFT  173
+#define SK_RIGHT 172
+#define SK_UP    175
+#define SK_DOWN  174
+#define SK_Z     122
+#define SK_X     120
+#define SK_C     99
+#define SK_V     118
+#define SK_S     115
+#define SK_D     100
+#define SK_F     102
+#define SK_J     106
+#define SK_K     107
+#define SK_L     108
+#define SK_SP    32
+#define SK_BKTK  96
+#define SK_ESC   136
+
 //// Model specific
 
 // The 7K uses different mapping
 #if numkeys == 7
 const float gridMap[] = {0,1,2,3,4,5,2.5};
+const uint8_t ledMap[] = {0,1,2,3,4,5,6};
 uint8_t mapping[][7] = {
-{115,100,102,106,107,108,32},
-{136,126,173,172,175,174,0}
+{SK_S,SK_D,SK_F,SK_J,SK_K,SK_L,SK_SP},
+{SK_ESC,SK_BKTK,SK_LEFT,SK_RIGHT,SK_UP,SK_DOWN,0}
+};
+#elif defined (G2x2)
+const uint8_t ledMap[] = {0,1,3,2};
+const float gridMap[] = {0,2,2,0};
+uint8_t mapping[][4] = {
+{SK_ESC,SK_BKTK,SK_Z,SK_X},
+{SK_LEFT,SK_RIGHT,SK_UP,SK_DOWN}
 };
 // Set keys past 2 even if only 2 exist
 #else
+const uint8_t ledMap[] = {0,1,2,3};
 const float gridMap[] = {0,1,2,3};
 uint8_t mapping[][4] = {
-{122,120,99,118},
-{136,126,173,172}
+{SK_Z,SK_X,SK_C,SK_V},
+{SK_ESC,SK_BKTK,SK_LEFT,SK_RIGHT}
 };
 #endif

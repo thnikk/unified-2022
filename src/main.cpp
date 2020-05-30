@@ -10,12 +10,15 @@
 Bounce * bounce = new Bounce[numkeys+1];
 CRGBArray<numkeys> leds;
 
+// buffer for keypresses
 bool pressed[numkeys+1];
 bool lastPressed[numkeys+1];
 
+// Starting and max brightness
 uint8_t b = 127;
-uint8_t bMax = 127;
+uint8_t bMax = b;
 
+// Default LED mode and speed of effects
 uint8_t ledMode = 0;
 uint8_t effectSpeed = 10;
 
@@ -36,7 +39,7 @@ unsigned long pm;
 // Version (Update this value to update EEPROM for AVR boards)
 uint8_t version = 2;
 
-// Remapper
+// Display names for each key (in specific order, do not re-arrange)
 const String friendlyKeys[] = {
     "L_CTRL", "L_SHIFT", "L_ALT", "L_GUI", "R_CTRL", "R_SHIFT",
     "R_ALT", "R_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
@@ -48,21 +51,20 @@ const String friendlyKeys[] = {
     "V_MUTE", "V_UP", "V_DOWN"
 };
 
+// Check if any key has been pressed in the loop.
+bool anyPressed = 0;
 
 void eepromInit(){
-    // If first boot after programming
-    // Use version checking because isValid only works with FlashStorage
+    // If version from EEPROM/flash doesn't match,
+    // reset EEPROM values
     if (EEPROM.read(0) != version){
         EEPROM.write(0, version);
         // Assign default values
         EEPROM.write(1, bMax);
         b = bMax;
         EEPROM.write(2, ledMode);
-        for (uint8_t x=0; x<numkeys; x++) {
-            EEPROM.write(3+x, custColor[x]);
-        }
-        // Mapping
-        for (uint8_t y=0; y<2; y++) {
+        for (uint8_t x=0; x<numkeys; x++) EEPROM.write(3+x, custColor[x]);
+        for (uint8_t y=0; y<2; y++) { // Mapping
             for (uint8_t x=0; x<numkeys; x++) {
                 int address=20+(y*30)+x;
                 EEPROM.write(address, mapping[y][x]);
@@ -88,13 +90,11 @@ void eepromInit(){
 }
 
 void eepromUpdate(){
+    // If values don't match, update them
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
-    for (uint8_t x=0; x<numkeys; x++) {
-        if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
-    }
-    // Mapping
-    for (uint8_t y=0; y<2; y++) {
+    for (uint8_t x=0; x<numkeys; x++) if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
+    for (uint8_t y=0; y<2; y++) { // Mapping
         for (uint8_t x=0; x<numkeys; x++) {
             int address=20+(y*30)+x;
             if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
@@ -109,6 +109,9 @@ void setup() {
 
     // Start LEDs
     FastLED.addLeds<NEOPIXEL, NPPIN>(leds, numkeys);
+#if defined (ADAFRUIT_TRINKET_M0)
+    FastLED.addLeds<DOTSTAR, INTERNAL_DS_DATA, INTERNAL_DS_CLK, BGR>(ds, 1);
+#endif
 
     // Set brightness
     FastLED.setBrightness(255);
@@ -138,7 +141,12 @@ void checkState() {
     // Limiting input polling to polling rate increases speed by 17x!
     if ((millis() - checkMillis) >= 1) {
         // Write bounce values to main pressed array
-        for(uint8_t x=0; x<=numkeys; x++){ bounce[x].update(); pressed[x] = bounce[x].read(); }
+        anyPressed = 0;
+        for(uint8_t x=0; x<=numkeys; x++){
+            bounce[x].update();
+            pressed[x] = bounce[x].read();
+            if (!pressed[x]) anyPressed = 1;
+        }
 #ifndef AVR
         // Get current touch value and write to main array
         touchValue = qt.measure();
@@ -151,18 +159,22 @@ void checkState() {
     }
 }
 
+// Check x key state
+void keyCheck(uint8_t x) {
+    Serial.print("Key ");
+    Serial.print(x+1);
+    Serial.print(" has been ");
+    if (pressed[x] == 0) Serial.println("pressed.");
+    if (pressed[x] == 1) Serial.println("released.");
+}
+
 // Compares inputs to last inputs and presses/releases key based on state change
 void keyboard() {
     for (uint8_t x=0; x<numkeys; x++){
         // If the button state changes, press/release a key.
         if ( pressed[x] != lastPressed[x] ){
 #ifdef DEBUG
-            // Print when key state changes.
-            Serial.print("Key ");
-            Serial.print(x+1);
-            Serial.print(" has been ");
-            if (pressed[x] == 0) Serial.println("pressed.");
-            if (pressed[x] == 1) Serial.println("released.");
+            keyCheck(x); // Only prints on state change
 #endif
             if (!pressed[x]) bpsCount++;
             pm = millis();
@@ -172,6 +184,8 @@ void keyboard() {
             // Check press state and press/release key
             switch(key){
                 // Key exceptions need to go here for NKROKeyboard
+                // It would be really nice if there was a better way to do this,
+                // but NKROKeyboard requires the literal key definition
                 case 128: if (!pressed[x]) KBP(KEY_LEFT_CTRL); if (pressed[x]) KBR(KEY_LEFT_CTRL); break;
                 case 129: if (!pressed[x]) KBP(KEY_LEFT_SHIFT); if (pressed[x]) KBR(KEY_LEFT_SHIFT); break;
                 case 130: if (!pressed[x]) KBP(KEY_LEFT_ALT); if (pressed[x]) KBR(KEY_LEFT_ALT); break;
@@ -326,6 +340,10 @@ void wheel(){
         if (pressed[i]) leds[i] = CHSV(hue+(z*10),255,255);
         else leds[i] = 0xFFFFFF;
     }
+#if defined (ADAFRUIT_TRINKET_M0)
+    if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
+    else ds[0] = 0xFFFFFF;
+#endif
     hue--;
     FastLED.show();
 }
@@ -346,9 +364,21 @@ void rbFade(){
             sat[i]=0;
             val[i]=255;
         }
-        uint8_t z = gridMap[i]; // Allows custom LED mapping (for grids)
+        uint8_t z = ledMap[i]; // Allows custom LED mapping (for grids)
         leds[z] = CHSV(hue+(i*50),sat[i],val[i]);
     }
+#if defined (ADAFRUIT_TRINKET_M0)
+    static int satDS;
+    static int valDS;
+    if (anyPressed) {
+        if (satDS < 255) satDS = satDS+8;
+        if (satDS > 255) satDS = 255; // Keep saturation within byte range
+        if (satDS == 255 && valDS > 0) valDS = valDS-8;
+        if (valDS < 0) valDS = 0; // Same for val
+    }
+    else { satDS=0; valDS=255; }
+    ds[0] = CHSV(hue,satDS,valDS);
+#endif
     hue-=8;
     if (hue < 0) hue = 255;
     FastLED.show();
@@ -361,6 +391,11 @@ void custom(){
         if (pressed[i]) leds[z] = CHSV(custColor[z],255,255);
         else leds[z] = 0xFFFFFF;
     }
+#if defined (ADAFRUIT_TRINKET_M0)
+    // Set DotStar to left key color
+    if (anyPressed == 0) ds[0] = CHSV(custColor[0],255,255);
+    else ds[0] = 0xFFFFFF;
+#endif
     FastLED.show();
 }
 
@@ -386,6 +421,10 @@ void bps(){
         if (pressed[i]) leds[z] = CHSV(lastColor+100,255,255);
         else leds[z] = 0xFFFFFF;
     }
+#if defined (ADAFRUIT_TRINKET_M0)
+    if (anyPressed == 0) ds[0] = CHSV(lastColor+100,255,255);
+    else ds[0] = 0xFFFFFF;
+#endif
     FastLED.show();
 
 }
@@ -429,7 +468,7 @@ void speedCheck() {
 
 // Menu text
 void greet(){
-    Serial.println(F("Press 0 to enter the configurator."));
+    Serial.println(F("Enter '0' to start the configurator."));
     Serial.println(F("(Keys on the keypad are disabled while the configurator is open.)"));
 }
 void menu(){
@@ -462,6 +501,7 @@ void keyTable() {
     // Print welcome message
     remapExp();
     uint8_t lineLength = 0;
+    // Print top line of table
     for (int y = 0; y < 69; y++) Serial.print("-");
     Serial.println();
     for (int x = 0; x <= 66; x++) {
@@ -490,6 +530,7 @@ void keyTable() {
     }
     // If line isn't finished, create newline
     if (lineLength != 0) Serial.println();
+    // Print bottom line of table
     for (int y = 0; y < 69; y++) Serial.print("-");
     Serial.println();
     Serial.println(F("For example, enter :8 to map escape"));
@@ -587,6 +628,25 @@ int parseByte(){
     }
 }
 
+// Converts incoming string chars to a byte
+bool enterMenu(){
+    String inString = "";    // string to hold input
+    char inChar = Serial.read();
+    // Wait for characters to stop coming in
+    while (Serial.read() > 0) {
+        inString += inChar;
+    }
+    // Then process
+    if (inString == "menu") {
+        inString = "";
+        return 1;
+    }
+    else {
+        inString = "";
+        return 0;
+    }
+}
+
 uint8_t parseKey() {
     String inString = "";    // string to hold input
     bool start=0;
@@ -622,6 +682,7 @@ uint8_t parseKey() {
     }
 }
 
+// Menu for changing brightness
 void brightMenu(){
     printBlock(3);
     while(true){
@@ -633,6 +694,7 @@ void brightMenu(){
     }
 }
 
+// Menu for changing colors on custom mode
 void customMenu(){
     printBlock(4);
     while(true){
@@ -653,8 +715,8 @@ void customMenu(){
     }
 }
 
+// Menu for remapping
 void remapMenu(){
-
     // Main loop
     while(true){
     uint8_t layer;
@@ -700,12 +762,15 @@ void remapMenu(){
     }
 }
 
+// Main menu
 void mainmenu() {
     printBlock(1);
     while(true){
         int incomingByte = Serial.read();
+        // While wating for a selection, cycle LEDs quickly.
         effects(5, 0);
         if (isDigit(incomingByte)){
+            // Wait for a value to match
             switch(incomingByte-48){
                 case(0):
                     Serial.println(F("Settings saved! Exiting..."));
@@ -756,6 +821,7 @@ void serialCheck() {
             // Otherwise, enter the menu.
             else mainmenu();
         }
+        //if (enterMenu() == 1) mainmenu();
 
         remapMillis = millis();
     }

@@ -10,15 +10,8 @@
 #if defined (ADAFRUIT_TRINKET_M0) && ! defined (TOUCH)
 const uint8_t pins[] = { 0, 2, 20, 19, 3 };
 #define NPPIN 1
-#define TPIN 4
 #endif
 
-// Pins for Trinket-based 2k touch keypad
-#if defined (ADAFRUIT_TRINKET_M0) && defined (TOUCH)
-const uint8_t pins[] = { 3, 4, 1 };
-#define NPPIN 0
-#define TPIN 1
-#endif
 
 // Dotstar for all trinket-based models
 #if defined (ADAFRUIT_TRINKET_M0)
@@ -29,7 +22,6 @@ CRGB ds[1];
 #ifdef SAMD21MINI
 const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, 0 };
 #define NPPIN 13
-#define TPIN A0
 #define Serial SerialUSB
 #endif
 
@@ -46,7 +38,28 @@ const uint8_t pins[] = { 2, 3, 7, 9, 10, 11, 12, 4 };
 #include <FlashAsEEPROM.h>
 #include <Adafruit_FreeTouch.h>
 #define COMMIT EEPROM.commit();
-Adafruit_FreeTouch qt = Adafruit_FreeTouch(TPIN, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#endif
+
+
+// Pins for Trinket-based 2k touch keypad
+#if defined (ADAFRUIT_TRINKET_M0) && defined (TOUCH)
+const uint8_t pins[] = { 3, 4, 1 };
+#define NPPIN 0
+#define TPIN 1
+Adafruit_FreeTouch qt = Adafruit_FreeTouch(1, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch qt_1 = Adafruit_FreeTouch(3, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch qt_2 = Adafruit_FreeTouch(4, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#elif defined (ADAFRUIT_TRINKET_M0) && ! defined (TOUCH)
+Adafruit_FreeTouch qt = Adafruit_FreeTouch(4, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#elif defined (SAMD21MINI)
+Adafruit_FreeTouch qt = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#endif
+
+
+#if defined (TOUCH)
+    #define CHECK checkTouch();
+#else
+    #define CHECK checkSwitch();
 #endif
 
 

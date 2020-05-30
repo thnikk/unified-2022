@@ -31,7 +31,7 @@ uint8_t bpsCount;
 
 // FreeTouch
 int touchValue;
-int touchThreshold = 500;
+const int touchThreshold = 800;
 
 // Millis timer for idle check
 unsigned long pm;
@@ -118,12 +118,14 @@ void setup() {
 
     // THIS SECTION NEEDS TO BE CHANGED FOR FULL FREETOUCH SUPPORT
 
+#ifndef TOUCH
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
     for (uint8_t x=0; x<=numkeys; x++) {
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);
     }
+#endif
 
     // Initialize EEPROM
     eepromInit();
@@ -131,9 +133,38 @@ void setup() {
     // Start freetouch for side button
 #ifndef AVR
     qt.begin();
+#ifdef TOUCH
+    qt_1.begin();
+    qt_2.begin();
+#endif
 #endif
     NKROKeyboard.begin();
 }
+
+#if defined (TOUCH)
+// Touch models need to manually have each pressed value assigned.
+void checkTouch() {
+    touchValue = qt_1.measure();
+    if (touchValue > 500) pressed[0] = 0;
+    else if ( touchValue < 450 ) pressed[0] = 1;
+    touchValue = qt_2.measure();
+    if (touchValue > 500) pressed[1] = 0;
+    else if ( touchValue < 450 ) pressed[1] = 1;
+#if numkeys == 4
+#endif
+    // Always update anyPressed
+    for(uint8_t x=0; x<=numkeys; x++) if (!pressed[x]) anyPressed = 1;
+}
+#else
+// Regular models can just iterate with a for loop.
+void checkSwitch() {
+    for(uint8_t x=0; x<=numkeys; x++){
+        bounce[x].update();
+        pressed[x] = bounce[x].read();
+        if (!pressed[x]) anyPressed = 1;
+    }
+}
+#endif
 
 unsigned long checkMillis;
 // All inputs are processed into pressed array
@@ -142,11 +173,10 @@ void checkState() {
     if ((millis() - checkMillis) >= 1) {
         // Write bounce values to main pressed array
         anyPressed = 0;
-        for(uint8_t x=0; x<=numkeys; x++){
-            bounce[x].update();
-            pressed[x] = bounce[x].read();
-            if (!pressed[x]) anyPressed = 1;
-        }
+
+        // Use models.h defined check function
+        CHECK
+
 #ifndef AVR
         // Get current touch value and write to main array
         touchValue = qt.measure();
@@ -468,7 +498,7 @@ void speedCheck() {
 
 // Menu text
 void greet(){
-    Serial.println(F("Enter '0' to start the configurator."));
+    Serial.println(F("Enter 'c' to start the configurator."));
     Serial.println(F("(Keys on the keypad are disabled while the configurator is open.)"));
 }
 void menu(){
@@ -815,13 +845,10 @@ void serialCheck() {
 
         // Check incoming character if exists
         if (Serial.available() > 0) {
-            uint8_t incomingByte = Serial.read();
-            // If it's not 0, repeat the greet message
-            if (incomingByte != 48) printBlock(0);
-            // Otherwise, enter the menu.
-            else mainmenu();
+            char inChar = Serial.read();
+            // If special key is received, enter the configurator
+            if (inChar == 'c') mainmenu();
         }
-        //if (enterMenu() == 1) mainmenu();
 
         remapMillis = millis();
     }

@@ -8,7 +8,7 @@ FastLED as it is SIGNIFICANTLY faster.
 - Support input methods:
     - [x] direct
     - [ ] matrix
-    - [ ] touch
+    - [x] touch
 - [x] Generally reduce size and increase efficiency.
 - [x] Switch to patched version of HID Project library for NKRO support (enabling the 7K for use with this code.)
 - [x] Unify electronics for future versions (SAMD21 Mini.)

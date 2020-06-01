@@ -33,6 +33,9 @@ uint8_t bpsCount;
 int touchValue;
 const int touchThreshold = 800;
 
+// Default idle time
+byte idleMinutes = 5;
+
 // Millis timer for idle check
 unsigned long pm;
 
@@ -40,7 +43,7 @@ unsigned long pm;
 uint8_t version = 2;
 
 // Display names for each key (in specific order, do not re-arrange)
-const String friendlyKeys[] = {
+const String PROGMEM friendlyKeys[] = {
     "L_CTRL", "L_SHIFT", "L_ALT", "L_GUI", "R_CTRL", "R_SHIFT",
     "R_ALT", "R_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
     "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
@@ -63,7 +66,8 @@ void eepromInit(){
         EEPROM.write(1, bMax);
         b = bMax;
         EEPROM.write(2, ledMode);
-        for (uint8_t x=0; x<numkeys; x++) EEPROM.write(3+x, custColor[x]);
+        EEPROM.write(3, idleMinutes);
+        for (uint8_t x=0; x<numkeys; x++) EEPROM.write(4+x, custColor[x]);
         for (uint8_t y=0; y<2; y++) { // Mapping
             for (uint8_t x=0; x<numkeys; x++) {
                 int address=20+(y*30)+x;
@@ -77,8 +81,9 @@ void eepromInit(){
     else {
         bMax = EEPROM.read(1);
         ledMode = EEPROM.read(2);
+        idleMinutes = EEPROM.read(3);
         for (uint8_t x=0;x<numkeys;x++){
-            custColor[x] = EEPROM.read(3+x);
+            custColor[x] = EEPROM.read(4+x);
         }
         for (uint8_t y=0; y<2; y++) {
             for (uint8_t x=0; x<numkeys; x++) {
@@ -93,6 +98,7 @@ void eepromUpdate(){
     // If values don't match, update them
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
+    if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
     for (uint8_t x=0; x<numkeys; x++) if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
     for (uint8_t y=0; y<2; y++) { // Mapping
         for (uint8_t x=0; x<numkeys; x++) {
@@ -116,7 +122,8 @@ void setup() {
     // Set brightness
     FastLED.setBrightness(255);
 
-    // THIS SECTION NEEDS TO BE CHANGED FOR FULL FREETOUCH SUPPORT
+    // Initialize EEPROM
+    eepromInit();
 
 #ifndef TOUCH
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
@@ -125,19 +132,20 @@ void setup() {
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);
     }
+#else
+    qt_1.begin();
+    qt_2.begin();
+#if numkeys == 4
+    qt_3.begin();
+    qt_4.begin();
 #endif
-
-    // Initialize EEPROM
-    eepromInit();
+#endif
 
     // Start freetouch for side button
 #ifndef AVR
     qt.begin();
-#ifdef TOUCH
-    qt_1.begin();
-    qt_2.begin();
 #endif
-#endif
+
     NKROKeyboard.begin();
 }
 
@@ -198,8 +206,18 @@ void keyCheck(uint8_t x) {
     if (pressed[x] == 1) Serial.println("released.");
 }
 
+
+uint8_t lastLayer;
 // Compares inputs to last inputs and presses/releases key based on state change
 void keyboard() {
+
+    // If the side button is held, release any keys that are held down.
+    uint8_t layer = pressed[numkeys];
+    if (lastLayer != layer) {
+        NKROKeyboard.releaseAll();
+        lastLayer = layer;
+    }
+
     for (uint8_t x=0; x<numkeys; x++){
         // If the button state changes, press/release a key.
         if ( pressed[x] != lastPressed[x] ){
@@ -208,8 +226,7 @@ void keyboard() {
 #endif
             if (!pressed[x]) bpsCount++;
             pm = millis();
-            uint8_t key = mapping[!pressed[numkeys]][x];
-            uint8_t unKey = mapping[pressed[numkeys]][x];
+            uint8_t key = mapping[!layer][x];
 
             // Check press state and press/release key
             switch(key){
@@ -285,77 +302,6 @@ void keyboard() {
                 case 194: if (!pressed[x]) KBP(KEY_VOLUME_DOWN); if (pressed[x]) KBR(KEY_VOLUME_DOWN); break;
                 default: if (!pressed[x]) KBP(key); if (pressed[x]) KBR(key); break;
             }
-            // Same for unkey
-            switch(unKey){
-                case 128: KBR(KEY_LEFT_CTRL); break;
-                case 129: KBR(KEY_LEFT_SHIFT); break;
-                case 130: KBR(KEY_LEFT_ALT); break;
-                case 131: KBR(KEY_LEFT_GUI); break;
-                case 132: KBR(KEY_RIGHT_CTRL); break;
-                case 133: KBR(KEY_RIGHT_SHIFT); break;
-                case 134: KBR(KEY_RIGHT_ALT); break;
-                case 135: KBR(KEY_RIGHT_GUI); break;
-                case 136: KBR(KEY_ESC); break;
-                case 137: KBR(KEY_F1); break;
-                case 138: KBR(KEY_F2); break;
-                case 139: KBR(KEY_F3); break;
-                case 140: KBR(KEY_F4); break;
-                case 141: KBR(KEY_F5); break;
-                case 142: KBR(KEY_F6); break;
-                case 143: KBR(KEY_F7); break;
-                case 144: KBR(KEY_F8); break;
-                case 145: KBR(KEY_F9); break;
-                case 146: KBR(KEY_F10); break;
-                case 147: KBR(KEY_F11); break;
-                case 148: KBR(KEY_F12); break;
-                case 149: KBR(KEY_F13); break;
-                case 150: KBR(KEY_F14); break;
-                case 151: KBR(KEY_F15); break;
-                case 152: KBR(KEY_F16); break;
-                case 153: KBR(KEY_F17); break;
-                case 154: KBR(KEY_F18); break;
-                case 155: KBR(KEY_F19); break;
-                case 156: KBR(KEY_F20); break;
-                case 157: KBR(KEY_F21); break;
-                case 158: KBR(KEY_F22); break;
-                case 159: KBR(KEY_F23); break;
-                case 160: KBR(KEY_F24); break;
-                case 161: KBR(KEY_ENTER); break;
-                case 162: KBR(KEY_BACKSPACE); break;
-                case 163: KBR(KEY_TAB); break;
-                case 164: KBR(KEY_PRINT); break;
-                case 165: KBR(KEY_PAUSE); break;
-                case 166: KBR(KEY_INSERT); break;
-                case 167: KBR(KEY_HOME); break;
-                case 168: KBR(KEY_PAGE_UP); break;
-                case 169: KBR(KEY_DELETE); break;
-                case 170: KBR(KEY_END); break;
-                case 171: KBR(KEY_PAGE_DOWN); break;
-                case 172: KBR(KEY_RIGHT); break;
-                case 173: KBR(KEY_LEFT); break;
-                case 174: KBR(KEY_DOWN); break;
-                case 175: KBR(KEY_UP); break;
-                case 176: KBR(KEYPAD_DIVIDE); break;
-                case 177: KBR(KEYPAD_MULTIPLY); break;
-                case 178: KBR(KEYPAD_SUBTRACT); break;
-                case 179: KBR(KEYPAD_ADD); break;
-                case 180: KBR(KEYPAD_ENTER); break;
-                case 181: KBR(KEYPAD_1); break;
-                case 182: KBR(KEYPAD_2); break;
-                case 183: KBR(KEYPAD_3); break;
-                case 184: KBR(KEYPAD_4); break;
-                case 185: KBR(KEYPAD_5); break;
-                case 186: KBR(KEYPAD_6); break;
-                case 187: KBR(KEYPAD_7); break;
-                case 188: KBR(KEYPAD_8); break;
-                case 189: KBR(KEYPAD_9); break;
-                case 190: KBR(KEYPAD_0); break;
-                case 191: KBR(KEY_MENU); break;
-                case 192: KBR(KEY_VOLUME_MUTE); break;
-                case 193: KBR(KEY_VOLUME_UP); break;
-                case 194: KBR(KEY_VOLUME_DOWN); break;
-                default: KBR(unKey); break;
-            }
             // Save last pressed state to buffer
             lastPressed[x] = pressed[x];
         }
@@ -366,8 +312,8 @@ void keyboard() {
 void wheel(){
     static uint8_t hue;
     for(uint8_t i = 0; i < numkeys; i++) {
-        float z = gridMap[i];
-        if (pressed[i]) leds[i] = CHSV(hue+(z*10),255,255);
+        float z = i;
+        if (pressed[i]) leds[i] = CHSV(hue+(z*64),255,255);
         else leds[i] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
@@ -508,6 +454,7 @@ void menu(){
     Serial.println(F("2 to set the LED mode"));
     Serial.println(F("3 to set the brightness"));
     Serial.println(F("4 to set the custom colors"));
+    Serial.println(F("5 to set the idle timeout"));
 }
 void LEDmodes(){
     Serial.println(F("Select an LED mode. Enter:"));
@@ -525,6 +472,17 @@ void custExp(){
 void remapExp(){
     Serial.println(F("If you're trying to map a key that doesn't print a character,"));
     Serial.println(F("please use one of the codes below with a ':' in front of it."));
+}
+void brightExp(){
+    Serial.println(F("Enter a brightness value between 0 and 255."));
+    Serial.print(F("Current value: "));
+    Serial.print(bMax);
+}
+void idleExp(){
+    Serial.println(F("Please enter an idle timeout value in minutes between 0 and 255."));
+    Serial.println(F("A value of 0 will disable the idle timeout feature."));
+    Serial.print(F("Current value: "));
+    Serial.println(idleMinutes);
 }
 
 void keyTable() {
@@ -574,6 +532,7 @@ void keyLookup(uint8_t inByte) {
     Serial.print(char(inByte));
 }
 
+// This funciton is redundant
 void printBlock(uint8_t block) {
     switch(block){
         // Greeter message
@@ -587,9 +546,7 @@ void printBlock(uint8_t block) {
             LEDmodes();
             break;
         case 3: // Brightness
-            Serial.println(F("Enter a brightness value between 0 and 255."));
-            Serial.print(F("Current value: "));
-            Serial.print(bMax);
+            brightExp();
             break;
         case 4: // Custom colors
             custExp();
@@ -713,14 +670,13 @@ uint8_t parseKey() {
 }
 
 // Menu for changing brightness
-void brightMenu(){
-    printBlock(3);
+uint8_t brightMenu(){
     while(true){
-        bMax = parseByte();
+        uint8_t temp = parseByte();
         Serial.print(F("Entered value: "));
-        Serial.println(bMax);
+        Serial.println(temp);
         Serial.println();
-        return;
+        return temp;
     }
 }
 
@@ -818,11 +774,17 @@ void mainmenu() {
                     printBlock(1);
                     break;
                 case(3):
-                    brightMenu();
+                    printBlock(3);
+                    bMax = brightMenu();
                     printBlock(1);
                     break;
                 case(4):
                     customMenu();
+                    printBlock(1);
+                    break;
+                case(5):
+                    idleExp();
+                    idleMinutes = brightMenu();
                     printBlock(1);
                     break;
                 default:
@@ -855,10 +817,11 @@ void serialCheck() {
 }
 
 void idle(){
-    // Idle timeout is 5 minutes
-    if ((millis() - pm) > 300000) bMax = 0;
-    // Restore from EEPROM value here
-    else bMax = EEPROM.read(1);
+    if (idleMinutes != 0) {
+        if ((millis() - pm) > idleMinutes*60000) bMax = 0;
+        // Restore from EEPROM value here
+        else bMax = EEPROM.read(1);
+    }
 }
 
 void loop() {

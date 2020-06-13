@@ -51,8 +51,9 @@ const String PROGMEM friendlyKeys[] = {
     "HOME", "PAGE_UP", "DELETE", "END", "PAGE_DN", "RIGHT", "LEFT", "DOWN", "UP",
     "PAD_DIV", "PAD_MULT", "PAD_SUB", "PAD_ADD", "PAD_ENT", "PAD_1", "PAD_2", "PAD_3",
     "PAD_4", "PAD_5", "PAD_6", "PAD_7", "PAD_8", "PAD_9", "PAD_0", "MENU",
-    "V_MUTE", "V_UP", "V_DOWN"
+    "V_MUTE", "V_UP", "V_DOWN", "M1", "M2", "M3"
 };
+const byte numSpecial = 69;
 
 // Check if any key has been pressed in the loop.
 bool anyPressed = 0;
@@ -147,6 +148,7 @@ void setup() {
 #endif
 
     NKROKeyboard.begin();
+    Mouse.begin();
 }
 
 #if defined (TOUCH)
@@ -215,6 +217,7 @@ void keyboard() {
     uint8_t layer = pressed[numkeys];
     if (lastLayer != layer) {
         NKROKeyboard.releaseAll();
+        Mouse.releaseAll();
         lastLayer = layer;
     }
 
@@ -300,6 +303,9 @@ void keyboard() {
                 case 192: if (!pressed[x]) KBP(KEY_VOLUME_MUTE); if (pressed[x]) KBR(KEY_VOLUME_MUTE); break;
                 case 193: if (!pressed[x]) KBP(KEY_VOLUME_UP); if (pressed[x]) KBR(KEY_VOLUME_UP); break;
                 case 194: if (!pressed[x]) KBP(KEY_VOLUME_DOWN); if (pressed[x]) KBR(KEY_VOLUME_DOWN); break;
+                case 195: if (!pressed[x]) Mouse.press(MOUSE_LEFT); if (pressed[x]) Mouse.release(MOUSE_LEFT); break;
+                case 196: if (!pressed[x]) Mouse.press(MOUSE_RIGHT); if (pressed[x]) Mouse.release(MOUSE_RIGHT); break;
+                case 197: if (!pressed[x]) Mouse.press(MOUSE_MIDDLE); if (pressed[x]) Mouse.release(MOUSE_MIDDLE); break;
                 default: if (!pressed[x]) KBP(key); if (pressed[x]) KBR(key); break;
             }
             // Save last pressed state to buffer
@@ -492,7 +498,7 @@ void keyTable() {
     // Print top line of table
     for (int y = 0; y < 69; y++) Serial.print("-");
     Serial.println();
-    for (int x = 0; x <= 66; x++) {
+    for (int x = 0; x <= numSpecial; x++) {
         if (lineLength == 0) Serial.print("| ");
         // Make every line wrap at 30 characters
         uint8_t nameLength = friendlyKeys[x].length(); // save as variable within for loop for repeated use
@@ -526,7 +532,7 @@ void keyTable() {
 }
 
 void keyLookup(uint8_t inByte) {
-    for (uint8_t x=0; x<=66;x++) {
+    for (uint8_t x=0; x<=numSpecial;x++) {
         if (inByte == 128+x) { Serial.print(friendlyKeys[x]); return; }
     }
     Serial.print(char(inByte));
@@ -662,7 +668,7 @@ uint8_t parseKey() {
         if (inByte <= 0 && start == 1) {
             // Convert string to int
             int value = inString.toInt();
-            if (value >= 0 && value <= 66) return 128+value;
+            if (value >= 0 && value <= numSpecial) return 128+value;
             // Otherwise, restart
             else { inString=""; start = 0; Serial.print(value); Serial.println(F(" is invalid. Please enter a valid value.")); }
         }

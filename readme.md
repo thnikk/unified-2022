@@ -18,6 +18,8 @@ FastLED as it is SIGNIFICANTLY faster.
     - [x] Make idle mode timeout configurable in configurator.
 - [x] Fix remapper to allow for non-printable keys.
 - [x] Allow HID library to accept ASCII values instead of requiring names.
-- [ ] Add profile switcher as an alternative to the layer shifter for models like the macropad.
+- [ ] Add profile switcher as an alternative to the layer shifter for models like the macropad (allow for more than 2 layers.)
 - [ ] Add the ability to map one key to multiple (change EEPROM index to 10 pages per key or something like that)
+- [x] Add mouse support
+    - [ ] Add MB4 and MB5
 

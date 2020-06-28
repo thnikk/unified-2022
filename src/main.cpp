@@ -128,7 +128,7 @@ void setup() {
 
 #ifndef TOUCH
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
-    for (uint8_t x=0; x<=numkeys; x++) {
+    for (uint8_t x=0; x<numkeys; x++) {
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);

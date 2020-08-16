@@ -40,7 +40,7 @@ byte idleMinutes = 5;
 unsigned long pm;
 
 // Version (Update this value to update EEPROM for AVR boards)
-uint8_t version = 2;
+uint8_t version = 3;
 
 // Display names for each key (in specific order, do not re-arrange)
 const String PROGMEM friendlyKeys[] = {
@@ -63,42 +63,57 @@ uint8_t layer = 0;
 // Using a byte here because it needs to be saved as a byte to EEPROM anyway.
 uint8_t LayerEn = 1;
 
+const byte setAddr = 0;
+const byte colAddr = 50;
+const byte mapAddr = 100;
+
+bool wipeFlag;
+
+void eepromLoad(){
+    bMax = EEPROM.read(1);
+    ledMode = EEPROM.read(2);
+    idleMinutes = EEPROM.read(3);
+    LayerEn = EEPROM.read(4);
+    layer = EEPROM.read(5);
+    for (uint8_t x=0;x<numkeys;x++) custColor[x] = EEPROM.read(colAddr+x);
+    for (uint8_t y=0; y<numkeys; y++) {
+        for (uint8_t x=0; x<numkeys; x++) {
+            int address=mapAddr+(y*numkeys)+x;
+            mapping[y][x] = EEPROM.read(address);
+        }
+    }
+}
+
 void eepromInit(){
     // If version from EEPROM/flash doesn't match,
     // reset EEPROM values
     if (EEPROM.read(0) != version){
+        wipeFlag = 1;
         EEPROM.write(0, version);
         // Assign default values
         EEPROM.write(1, bMax);
         b = bMax;
         EEPROM.write(2, ledMode);
         EEPROM.write(3, idleMinutes);
-        EEPROM.write(100, LayerEn);
-        for (uint8_t x=0; x<numkeys; x++) EEPROM.write(4+x, custColor[x]);
-        for (uint8_t y=0; y<2; y++) { // Mapping
+        EEPROM.write(4, LayerEn);
+        EEPROM.write(5, layer);
+        for (uint8_t x=0; x<numkeys; x++) EEPROM.write(colAddr+x, custColor[x]);
+        for (uint8_t y=0; y<numkeys; y++) { // Mapping
             for (uint8_t x=0; x<numkeys; x++) {
-                int address=20+(y*30)+x;
+                int address=mapAddr+(y*numkeys)+x;
                 EEPROM.write(address, mapping[y][x]);
             }
         }
+
+        eepromLoad();
+
         // Write values
         COMMIT
     }
     // Otherwise, restore values
     else {
-        bMax = EEPROM.read(1);
-        ledMode = EEPROM.read(2);
-        idleMinutes = EEPROM.read(3);
-        LayerEn = EEPROM.read(100);
-        for (uint8_t x=0;x<numkeys;x++){
-            custColor[x] = EEPROM.read(4+x);
-        }
-        for (uint8_t y=0; y<2; y++) {
-            for (uint8_t x=0; x<numkeys; x++) {
-                int address=20+(y*30)+x;
-                mapping[y][x] = EEPROM.read(address);
-            }
-        }
+        wipeFlag = 0;
+        eepromLoad();
     }
 }
 
@@ -107,11 +122,11 @@ void eepromUpdate(){
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
     if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
-    if (LayerEn != EEPROM.read(100)) EEPROM.write(100, LayerEn);
-    for (uint8_t x=0; x<numkeys; x++) if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
-    for (uint8_t y=0; y<2; y++) { // Mapping
+    if (LayerEn != EEPROM.read(4)) EEPROM.write(4, LayerEn);
+    for (uint8_t x=0; x<numkeys; x++) if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
+    for (uint8_t y=0; y<numkeys; y++) { // Mapping
         for (uint8_t x=0; x<numkeys; x++) {
-            int address=20+(y*30)+x;
+            int address=mapAddr+(y*numkeys)+x;
             if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
         }
     }
@@ -226,7 +241,7 @@ void keyPress() {
 #endif
             if (!pressed[x]) bpsCount++;
             pm = millis();
-            uint8_t key = mapping[!layer][x];
+            uint8_t key = mapping[layer][x];
             // Check press state and press/release key
             switch(key){
                 // Key exceptions need to go here for NKROKeyboard
@@ -317,22 +332,35 @@ void keyboard() {
 
     // If the side button is held, release any keys that are held down.
     if (LayerEn == 1) {
-        layer = pressed[numkeys];
-        keyPress();
+        layer = !pressed[numkeys];
     }
-    else {
+    else if (LayerEn == 0) {
         // If the side button is held
-        if (!pressed[numkeys]) {
-            // Block all inputs
+        while (!pressed[numkeys]) {
+
+            // Check keys or we'd be stuck in here forever.
+            checkState();
+
+            for(uint8_t i = 0; i < numkeys; i++) {
+                uint8_t hue = (255/numkeys) * layer;
+                leds[i] = CHSV(hue,255,255);
+                FastLED.show();
+            }
+
             // Change profile based on key pressed
             for (byte x=0; x<numkeys; x++) {
-                if (!pressed[x]) layer = x;
+                if (!pressed[x]) {
+                    layer = x;
+                }
+            }
+            // Update layer value if it's changed from the EEPROM value
+            if (layer != EEPROM.read(5)) {
+                EEPROM.write(5, layer);
+                COMMIT
             }
         }
-        else {
-            keyPress();
-        }
     }
+    keyPress();
 
 
     if (lastLayer != layer) {
@@ -490,7 +518,7 @@ void menu(){
     Serial.println(F("3 to set the brightness"));
     Serial.println(F("4 to set the custom colors"));
     Serial.println(F("5 to set the idle timeout"));
-    Serial.println(F("6 to set profile/layer mode"));
+    Serial.println(F("6 to set side button mode"));
 }
 void LEDmodes(){
     Serial.println(F("Select an LED mode. Enter:"));
@@ -521,16 +549,18 @@ void idleExp(){
     Serial.println(idleMinutes);
 }
 void plExp(){
-    Serial.println(F("Please choose profile or layer mode."));
+    Serial.println(F("Please choose the side button mode."));
     Serial.print(F("Profile mode will give you "));
     Serial.print(numkeys);
     Serial.println(F(" profiles to switch between by holding"));
     Serial.println(F("the side button and pressing the corresponding key."));
     Serial.println(F("Layer mode will make the side button function as a layer shift key and"));
     Serial.println(F("give you access to a second layer of keys while held."));
+    Serial.println(F("Disabled will disable the side button altogether."));
     Serial.println(F("Enter: "));
     Serial.println(F("0 for Profile"));
     Serial.println(F("1 for Layer"));
+    Serial.println(F("2 for Disabled"));
     Serial.print(F("Current value: "));
     Serial.println(LayerEn);
 }
@@ -610,7 +640,16 @@ void printBlock(uint8_t block) {
             // Print key names and numbers
             Serial.println();
             Serial.println(F("Current values: "));
-            for (uint8_t y=0;y<2;y++) {
+            byte max;
+            if (LayerEn == 1) {
+                max = 2;
+            }
+            else if (LayerEn == 0) {
+                max = numkeys;
+            }
+            else max = 1;
+
+            for (uint8_t y=0;y<max;y++) {
                 Serial.print("Layer ");
                 Serial.print(y+1);
                 Serial.print(": ");
@@ -751,50 +790,81 @@ void customMenu(){
     }
 }
 
+void printMapOpt(byte max) {
+    Serial.println(F("0 to exit"));
+    for (byte x=0;x<max;x++) {
+        Serial.print(x+1);
+        Serial.print(F(" to remap layer "));
+        Serial.println(x+1);
+    }
+
+}
+
 // Menu for remapping
 void remapMenu(){
+    bool skipLayerCheck = 0;
     // Main loop
     while(true){
-    uint8_t layer;
-    Serial.println(F("Which layer would you like to remap?"));
-    Serial.println(F("0 to exit"));
-    Serial.println(F("1 to remap layer 1"));
-    Serial.println(F("2 to remap layer 2"));
+    uint8_t layer2;
+    if (LayerEn == 0) {
+        Serial.println(F("Which profile would you like to remap?"));
+        printMapOpt(numkeys);
+    }
+    else if (LayerEn == 1) {
+        Serial.println(F("Which layer would you like to remap?"));
+        printMapOpt(2);
+    }
+    else {
+        skipLayerCheck = 1;
+        layer2 = 1;
+        printMapOpt(1);
+    }
     printBlock(5);
 
-    // Select layer
-    bool layerCheck = 0;
-    while(layerCheck == 0){
-        int incomingByte = Serial.read();
-        if (incomingByte > 0){
-            if (incomingByte>=48&&incomingByte<=50) {
-                layer = incomingByte-48;
-                if (layer == 0) layerCheck = 1; // Return before printing if layer is 0
-                else layerCheck = 1;
+    if (skipLayerCheck == 0) {
+        // Select layer
+        bool layerCheck = 0;
+        while(layerCheck == 0){
+            int incomingByte = Serial.read();
+            if (incomingByte > 0){
+                byte max;
+                if (LayerEn == 1) {
+                    max = 2;
+                }
+                else {
+                    max = numkeys;
+                }
+                if (incomingByte>=48&&incomingByte<=48+max) {
+                    layer2 = incomingByte-48;
+                    if (layer2 == 0) layerCheck = 1; // Return before printing if layer is 0
+                    else layerCheck = 1;
+                }
+                else Serial.println(F("Please enter a valid value."));
             }
-            else Serial.println(F("Please enter a valid value."));
         }
     }
 
     // Exit if user inputs 0
-    if (layer == 0) return;
+    if (layer2 == 0) return;
 
     // Remap selected layer
     keyTable();
     Serial.print(F("Layer "));
-    Serial.print(layer);
+    Serial.print(layer2);
     Serial.print(F(": "));
     for(uint8_t x=0;x<numkeys;x++){
         uint8_t key = parseKey();
         keyLookup(key);
         // Subtract 1 because array is 0 indexed
-        mapping[layer-1][x] = key;
+        mapping[layer2-1][x] = key;
         // Separate by comma if not last value
         if (x<numkeys-1) Serial.print(F(", "));
         // Otherwise, create newline
         else Serial.println();
     }
     Serial.println();
+    // Exit remapper if only one layer is being remapped.
+    if (skipLayerCheck == 1) return;
     }
 }
 
@@ -866,6 +936,12 @@ void serialCheck() {
             // If special key is received, enter the configurator
             if (inChar == 'c') mainmenu();
         }
+        /*Serial.print("Wipe flag: "); Serial.println(wipeFlag);
+        Serial.print("Brightness: "); Serial.println(EEPROM.read(1));
+        Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
+        Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
+        Serial.print("Layer/profile mode: "); Serial.println(EEPROM.read(4));
+        Serial.print("Profile: ");Serial.print(layer);Serial.print("/");Serial.println(EEPROM.read(255));*/
 
         remapMillis = millis();
     }

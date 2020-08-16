@@ -65,7 +65,7 @@ Adafruit_FreeTouch qt = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_
 
 
 //// Mapping nicknames
-// This is only used here
+// These are only used by the compiler so keys can have nicknames during assignment
 #define SK_LEFT  173
 #define SK_RIGHT 172
 #define SK_UP    175
@@ -83,6 +83,23 @@ Adafruit_FreeTouch qt = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_
 #define SK_SP    32
 #define SK_BKTK  96
 #define SK_ESC   136
+#define SK_F13   149
+#define SK_F14   150
+#define SK_F15   151
+#define SK_F16   152
+#define SK_F17   153
+#define SK_F18   154
+#define SK_F19   155
+#define SK_F20   156
+#define SK_F21   157
+#define SK_F22   158
+#define SK_F23   159
+#define SK_F24   160
+#define SK_MB1   195
+#define SK_MB2   196
+#define SK_MB3   197
+#define SK_MB4   198
+#define SK_MB5   199
 
 //// Model specific
 
@@ -99,7 +116,9 @@ const uint8_t ledMap[] = {0,1,3,2};
 const float gridMap[] = {0,2,2,0};
 uint8_t mapping[][4] = {
 {SK_ESC,SK_BKTK,SK_Z,SK_X},
-{SK_LEFT,SK_RIGHT,SK_UP,SK_DOWN}
+{SK_LEFT,SK_RIGHT,SK_UP,SK_DOWN},
+{SK_F13,SK_F14,SK_F15,SK_F16},
+{SK_MB1,SK_MB2,SK_MB4,SK_MB5}
 };
 // Set keys past 2 even if only 2 exist
 #else

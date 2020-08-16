@@ -8,6 +8,7 @@ FastLED as it is SIGNIFICANTLY faster.
 - Support input methods:
     - [x] direct
     - [ ] matrix
+        - This will probably be done later when I make a real matrix model for real (like a 3x3.)
     - [x] touch
 - [x] Generally reduce size and increase efficiency.
 - [x] Switch to patched version of HID Project library for NKRO support (enabling the 7K for use with this code.)
@@ -19,10 +20,15 @@ FastLED as it is SIGNIFICANTLY faster.
 - [x] Fix remapper to allow for non-printable keys.
 - [x] Allow HID library to accept ASCII values instead of requiring names.
 - [x] Add profile switcher as an alternative to the layer shifter for models like the macropad (allow for more than 2 layers.)
+    - [x] Change LED color while switching profiles to indicate the active profile.
+- [x] Add option to disable the side button.
 - [ ] Add the ability to map one key to multiple (change EEPROM index to 10 pages per key or something like that)
     - This can cause some issues and may be best to omit for minimizing confusion. Using F13-F24 and mapping macros through AHK is a much more versatile solution, but may cause issues with anti-cheat software (which is malware anyway.)
 - [x] Add mouse support
     - [x] Add MB4 and MB5
+- [ ] Add LED effects for remapping (color for layer and white for currently mapping key.)
 
 # Maintenance
-- [ ] Clean up EEPROM addresses.
+- [x] Clean up EEPROM addresses.
+- [ ] Remove printBlock function.
+- [ ] Test everything.

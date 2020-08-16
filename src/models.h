@@ -20,6 +20,7 @@ CRGB ds[1];
 
 // Pins for all newer models
 #ifdef SAMD21MINI
+// Side button is always last value in the array.
 const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, 0 };
 #define NPPIN 13
 #define Serial SerialUSB

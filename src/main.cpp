@@ -51,12 +51,17 @@ const String PROGMEM friendlyKeys[] = {
     "HOME", "PAGE_UP", "DELETE", "END", "PAGE_DN", "RIGHT", "LEFT", "DOWN", "UP",
     "PAD_DIV", "PAD_MULT", "PAD_SUB", "PAD_ADD", "PAD_ENT", "PAD_1", "PAD_2", "PAD_3",
     "PAD_4", "PAD_5", "PAD_6", "PAD_7", "PAD_8", "PAD_9", "PAD_0", "MENU",
-    "V_MUTE", "V_UP", "V_DOWN", "M1", "M2", "M3"
+    "V_MUTE", "V_UP", "V_DOWN", "M1", "M2", "M3", "M4", "M5"
 };
-const byte numSpecial = 69;
+const byte numSpecial = 71;
 
 // Check if any key has been pressed in the loop.
 bool anyPressed = 0;
+
+// Current layer selection and layer/profile seleciton
+uint8_t layer = 0;
+// Using a byte here because it needs to be saved as a byte to EEPROM anyway.
+uint8_t LayerEn = 1;
 
 void eepromInit(){
     // If version from EEPROM/flash doesn't match,
@@ -68,6 +73,7 @@ void eepromInit(){
         b = bMax;
         EEPROM.write(2, ledMode);
         EEPROM.write(3, idleMinutes);
+        EEPROM.write(100, LayerEn);
         for (uint8_t x=0; x<numkeys; x++) EEPROM.write(4+x, custColor[x]);
         for (uint8_t y=0; y<2; y++) { // Mapping
             for (uint8_t x=0; x<numkeys; x++) {
@@ -83,6 +89,7 @@ void eepromInit(){
         bMax = EEPROM.read(1);
         ledMode = EEPROM.read(2);
         idleMinutes = EEPROM.read(3);
+        LayerEn = EEPROM.read(100);
         for (uint8_t x=0;x<numkeys;x++){
             custColor[x] = EEPROM.read(4+x);
         }
@@ -100,6 +107,7 @@ void eepromUpdate(){
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
     if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
+    if (LayerEn != EEPROM.read(100)) EEPROM.write(100, LayerEn);
     for (uint8_t x=0; x<numkeys; x++) if (custColor[x] != EEPROM.read(3+x)) EEPROM.write(3+x, custColor[x]);
     for (uint8_t y=0; y<2; y++) { // Mapping
         for (uint8_t x=0; x<numkeys; x++) {
@@ -208,19 +216,8 @@ void keyCheck(uint8_t x) {
     if (pressed[x] == 1) Serial.println("released.");
 }
 
-
 uint8_t lastLayer;
-// Compares inputs to last inputs and presses/releases key based on state change
-void keyboard() {
-
-    // If the side button is held, release any keys that are held down.
-    uint8_t layer = pressed[numkeys];
-    if (lastLayer != layer) {
-        NKROKeyboard.releaseAll();
-        Mouse.releaseAll();
-        lastLayer = layer;
-    }
-
+void keyPress() {
     for (uint8_t x=0; x<numkeys; x++){
         // If the button state changes, press/release a key.
         if ( pressed[x] != lastPressed[x] ){
@@ -230,7 +227,6 @@ void keyboard() {
             if (!pressed[x]) bpsCount++;
             pm = millis();
             uint8_t key = mapping[!layer][x];
-
             // Check press state and press/release key
             switch(key){
                 // Key exceptions need to go here for NKROKeyboard
@@ -306,12 +302,45 @@ void keyboard() {
                 case 195: if (!pressed[x]) Mouse.press(MOUSE_LEFT); if (pressed[x]) Mouse.release(MOUSE_LEFT); break;
                 case 196: if (!pressed[x]) Mouse.press(MOUSE_RIGHT); if (pressed[x]) Mouse.release(MOUSE_RIGHT); break;
                 case 197: if (!pressed[x]) Mouse.press(MOUSE_MIDDLE); if (pressed[x]) Mouse.release(MOUSE_MIDDLE); break;
+                case 198: if (!pressed[x]) Mouse.press(MOUSE_PREV); if (pressed[x]) Mouse.release(MOUSE_PREV); break;
+                case 199: if (!pressed[x]) Mouse.press(MOUSE_NEXT); if (pressed[x]) Mouse.release(MOUSE_NEXT); break;
                 default: if (!pressed[x]) KBP(key); if (pressed[x]) KBR(key); break;
             }
             // Save last pressed state to buffer
             lastPressed[x] = pressed[x];
         }
     }
+}
+
+// Compares inputs to last inputs and presses/releases key based on state change
+void keyboard() {
+
+    // If the side button is held, release any keys that are held down.
+    if (LayerEn == 1) {
+        layer = pressed[numkeys];
+        keyPress();
+    }
+    else {
+        // If the side button is held
+        if (!pressed[numkeys]) {
+            // Block all inputs
+            // Change profile based on key pressed
+            for (byte x=0; x<numkeys; x++) {
+                if (!pressed[x]) layer = x;
+            }
+        }
+        else {
+            keyPress();
+        }
+    }
+
+
+    if (lastLayer != layer) {
+        NKROKeyboard.releaseAll();
+        Mouse.releaseAll();
+        lastLayer = layer;
+    }
+
 }
 
 // Cycle through rainbow
@@ -461,6 +490,7 @@ void menu(){
     Serial.println(F("3 to set the brightness"));
     Serial.println(F("4 to set the custom colors"));
     Serial.println(F("5 to set the idle timeout"));
+    Serial.println(F("6 to set profile/layer mode"));
 }
 void LEDmodes(){
     Serial.println(F("Select an LED mode. Enter:"));
@@ -489,6 +519,20 @@ void idleExp(){
     Serial.println(F("A value of 0 will disable the idle timeout feature."));
     Serial.print(F("Current value: "));
     Serial.println(idleMinutes);
+}
+void plExp(){
+    Serial.println(F("Please choose profile or layer mode."));
+    Serial.print(F("Profile mode will give you "));
+    Serial.print(numkeys);
+    Serial.println(F(" profiles to switch between by holding"));
+    Serial.println(F("the side button and pressing the corresponding key."));
+    Serial.println(F("Layer mode will make the side button function as a layer shift key and"));
+    Serial.println(F("give you access to a second layer of keys while held."));
+    Serial.println(F("Enter: "));
+    Serial.println(F("0 for Profile"));
+    Serial.println(F("1 for Layer"));
+    Serial.print(F("Current value: "));
+    Serial.println(LayerEn);
 }
 
 void keyTable() {
@@ -791,6 +835,11 @@ void mainmenu() {
                 case(5):
                     idleExp();
                     idleMinutes = brightMenu();
+                    printBlock(1);
+                    break;
+                case(6):
+                    plExp();
+                    LayerEn = brightMenu();
                     printBlock(1);
                     break;
                 default:

@@ -21,7 +21,7 @@ CRGB ds[1];
 // Pins for all newer models
 #ifdef SAMD21MINI
 // Side button is always last value in the array.
-const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, 0 };
+const uint8_t pins[] = { 12, 11, 10, 9, 6, 5, A3, A0 };
 #define NPPIN 13
 #define Serial SerialUSB
 #endif
@@ -109,7 +109,12 @@ const float gridMap[] = {0,1,2,3,4,5,2.5};
 const uint8_t ledMap[] = {0,1,2,3,4,5,6};
 uint8_t mapping[][7] = {
 {SK_S,SK_D,SK_F,SK_J,SK_K,SK_L,SK_SP},
-{SK_ESC,SK_BKTK,SK_LEFT,SK_RIGHT,SK_UP,SK_DOWN,0}
+{SK_ESC,SK_BKTK,SK_LEFT,SK_RIGHT,SK_UP,SK_DOWN,0},
+{SK_F13,SK_F14,SK_F15,SK_F16,SK_F17,SK_F18,SK_F19},
+{0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0}
 };
 #elif defined (G2x2)
 const uint8_t ledMap[] = {0,1,3,2};

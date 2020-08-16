@@ -63,11 +63,13 @@ uint8_t layer = 0;
 // Using a byte here because it needs to be saved as a byte to EEPROM anyway.
 uint8_t LayerEn = 1;
 
-const byte setAddr = 0;
-const byte colAddr = 50;
-const byte mapAddr = 100;
+// Leave 10 bytes for general settings before colors
+const byte colAddr = 10;
+// Start mapping after colors in EEPROM
+const byte mapAddr = colAddr+numkeys;
 
-bool wipeFlag;
+// Debug check to see if flash has been wiped since boot.
+bool wipeFlag = 0;
 
 void eepromLoad(){
     bMax = EEPROM.read(1);
@@ -85,8 +87,10 @@ void eepromLoad(){
 }
 
 void eepromInit(){
-    // If version from EEPROM/flash doesn't match,
-    // reset EEPROM values
+    // If version from EEPROM/flash doesn't match, reset EEPROM values
+    // There's a builtin function for this in the FlashStorage library,
+    // but this is backwards-compatible with the EEPROM library for the
+    // AVR 7K model.
     if (EEPROM.read(0) != version){
         wipeFlag = 1;
         EEPROM.write(0, version);
@@ -104,15 +108,13 @@ void eepromInit(){
                 EEPROM.write(address, mapping[y][x]);
             }
         }
-
+        // Load default values afer initializing.
         eepromLoad();
-
         // Write values
         COMMIT
     }
-    // Otherwise, restore values
+    // Otherwise, just restore values
     else {
-        wipeFlag = 0;
         eepromLoad();
     }
 }
@@ -140,6 +142,7 @@ void setup() {
     // Start LEDs
     FastLED.addLeds<NEOPIXEL, NPPIN>(leds, numkeys);
 #if defined (ADAFRUIT_TRINKET_M0)
+    // Use DotStar LED built into the trinket M0
     FastLED.addLeds<DOTSTAR, INTERNAL_DS_DATA, INTERNAL_DS_CLK, BGR>(ds, 1);
 #endif
 

@@ -347,11 +347,16 @@ void keyboard() {
             // Check keys or we'd be stuck in here forever.
             checkState();
 
+            // Set color based on selected profile
+            uint8_t hue = (255/numkeys) * layer;
             for(uint8_t i = 0; i < numkeys; i++) {
-                uint8_t hue = (255/numkeys) * layer;
                 leds[i] = CHSV(hue,255,255);
-                FastLED.show();
             }
+            // Also apply color to dotstar
+#if defined (ADAFRUIT_TRINKET_M0)
+            ds[0] = CHSV(hue,255,255);
+#endif
+            FastLED.show();
 
             // Change profile based on key pressed
             for (byte x=0; x<numkeys; x++) {
@@ -989,7 +994,7 @@ void loop() {
     keyboard();
     idle();
     // Debug check for loops per second
-    //speedCheck();
+    // speedCheck();
 #ifndef DEBUG
     serialCheck();
 #endif

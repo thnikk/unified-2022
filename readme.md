@@ -26,9 +26,10 @@ FastLED as it is SIGNIFICANTLY faster.
     - This can cause some issues and may be best to omit for minimizing confusion. Using F13-F24 and mapping macros through AHK is a much more versatile solution, but may cause issues with anti-cheat software (which is malware anyway.)
 - [x] Add mouse support
     - [x] Add MB4 and MB5
-- [ ] Add LED effects for remapping (color for layer and white for currently mapping key.)
+- [x] Add LED effects for remapping (color for layer and white for currently mapping key.)
 
 # Maintenance
 - [x] Clean up EEPROM addresses.
+- [ ] Clean up LED functions.
 - [ ] Remove printBlock function.
 - [ ] Test everything.

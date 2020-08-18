@@ -71,6 +71,9 @@ const byte mapAddr = colAddr+numkeys;
 // Debug check to see if flash has been wiped since boot.
 bool wipeFlag = 0;
 
+// Layer currently being mapped
+uint8_t mappingLayer;
+
 void eepromLoad(){
     bMax = EEPROM.read(1);
     ledMode = EEPROM.read(2);
@@ -337,7 +340,7 @@ void keyboard() {
     if (LayerEn == 1) {
         layer = !pressed[numkeys];
     }
-    else if (LayerEn == 0) {
+    else if (LayerEn == 2) {
         // If the side button is held
         while (!pressed[numkeys]) {
 
@@ -387,6 +390,20 @@ void wheel(){
     else ds[0] = 0xFFFFFF;
 #endif
     hue--;
+    FastLED.show();
+}
+
+// Change color based on the current layer and highlight the key being remapped.
+uint8_t selected;
+void highlightSelected(){
+    uint8_t hue = (255/numkeys) * (mappingLayer-1);
+    for(uint8_t i = 0; i < numkeys; i++) {
+        leds[i] = CHSV(hue,255,255);
+        if (i == selected) leds[i] = 0xFFFFFF;
+    }
+#if defined (ADAFRUIT_TRINKET_M0)
+    if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
+#endif
     FastLED.show();
 }
 
@@ -485,6 +502,8 @@ void effects(uint8_t speed, uint8_t MODE) {
                 custom(); break;
             case 3:
                 bps(); break;
+            case 4:
+                highlightSelected(); break;
         }
 
         // Fade brightness on idle change
@@ -561,9 +580,9 @@ void plExp(){
     Serial.println(F("give you access to a second layer of keys while held."));
     Serial.println(F("Disabled will disable the side button altogether."));
     Serial.println(F("Enter: "));
-    Serial.println(F("0 for Profile"));
+    Serial.println(F("0 for Disabled"));
     Serial.println(F("1 for Layer"));
-    Serial.println(F("2 for Disabled"));
+    Serial.println(F("2 for Profile"));
     Serial.print(F("Current value: "));
     Serial.println(LayerEn);
 }
@@ -647,7 +666,7 @@ void printBlock(uint8_t block) {
             if (LayerEn == 1) {
                 max = 2;
             }
-            else if (LayerEn == 0) {
+            else if (LayerEn == 2) {
                 max = numkeys;
             }
             else max = 1;
@@ -730,6 +749,8 @@ uint8_t parseKey() {
     String inString = "";    // string to hold input
     bool start=0;
     while (true) {
+        // Highlight active key
+        effects(5, 4);
         // Store incoming byte from Serial connection
         int inByte = Serial.read();
         // If the first character is a colon
@@ -808,8 +829,7 @@ void remapMenu(){
     bool skipLayerCheck = 0;
     // Main loop
     while(true){
-    uint8_t layer2;
-    if (LayerEn == 0) {
+    if (LayerEn == 2) {
         Serial.println(F("Which profile would you like to remap?"));
         printMapOpt(numkeys);
     }
@@ -819,7 +839,7 @@ void remapMenu(){
     }
     else {
         skipLayerCheck = 1;
-        layer2 = 1;
+        mappingLayer = 1;
         printMapOpt(1);
     }
     printBlock(5);
@@ -828,6 +848,7 @@ void remapMenu(){
         // Select layer
         bool layerCheck = 0;
         while(layerCheck == 0){
+            effects(5, 0);
             int incomingByte = Serial.read();
             if (incomingByte > 0){
                 byte max;
@@ -838,8 +859,8 @@ void remapMenu(){
                     max = numkeys;
                 }
                 if (incomingByte>=48&&incomingByte<=48+max) {
-                    layer2 = incomingByte-48;
-                    if (layer2 == 0) layerCheck = 1; // Return before printing if layer is 0
+                    mappingLayer = incomingByte-48;
+                    if (mappingLayer == 0) layerCheck = 1; // Return before printing if layer is 0
                     else layerCheck = 1;
                 }
                 else Serial.println(F("Please enter a valid value."));
@@ -848,18 +869,19 @@ void remapMenu(){
     }
 
     // Exit if user inputs 0
-    if (layer2 == 0) return;
+    if (mappingLayer == 0) return;
 
     // Remap selected layer
     keyTable();
     Serial.print(F("Layer "));
-    Serial.print(layer2);
+    Serial.print(mappingLayer);
     Serial.print(F(": "));
     for(uint8_t x=0;x<numkeys;x++){
+        selected = x;
         uint8_t key = parseKey();
         keyLookup(key);
         // Subtract 1 because array is 0 indexed
-        mapping[layer2-1][x] = key;
+        mapping[mappingLayer-1][x] = key;
         // Separate by comma if not last value
         if (x<numkeys-1) Serial.print(F(", "));
         // Otherwise, create newline

@@ -33,3 +33,5 @@ FastLED as it is SIGNIFICANTLY faster.
 - [ ] Clean up LED functions.
 - [ ] Remove printBlock function.
 - [ ] Test everything.
+- [ ] Fix legacy 7k not properly restoring the active profile.
+    - This seems specific to profile mode, as layer mode is unaffected.

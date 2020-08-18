@@ -40,10 +40,10 @@ byte idleMinutes = 5;
 unsigned long pm;
 
 // Version (Update this value to update EEPROM for AVR boards)
-uint8_t version = 3;
+uint8_t version = 4;
 
 // Display names for each key (in specific order, do not re-arrange)
-const String PROGMEM friendlyKeys[] = {
+const String friendlyKeys[] = {
     "L_CTRL", "L_SHIFT", "L_ALT", "L_GUI", "R_CTRL", "R_SHIFT",
     "R_ALT", "R_GUI", "ESC", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
     "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
@@ -157,7 +157,11 @@ void setup() {
 
 #ifndef TOUCH
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
+#ifdef AVR
+    for (uint8_t x=0; x<numkeys+1; x++) {
+#else
     for (uint8_t x=0; x<numkeys; x++) {
+#endif
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);

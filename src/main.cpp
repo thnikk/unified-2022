@@ -6,9 +6,16 @@
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 
-// Initialize inputs and LEDs
-Bounce * bounce = new Bounce[numkeys+1];
+// FastLED with RGBW
+#ifdef RGBW
+#include "FastLED_RGBW.h"
+CRGBW leds[numkeys];
+CRGB *ledsRGB = (CRGB *) &leds[0];
+#else
 CRGBArray<numkeys> leds;
+#endif
+
+Bounce * bounce = new Bounce[numkeys+1];
 
 // buffer for keypresses
 bool pressed[numkeys+1];
@@ -142,8 +149,12 @@ void setup() {
     // Set the serial baudrate
     Serial.begin(9600);
 
-    // Start LEDs
+    //FastLED with RGBW
+#ifdef RGBW
+    FastLED.addLeds<WS2812B, NPPIN, RGB>(ledsRGB, getRGBWsize(numkeys));
+#else
     FastLED.addLeds<NEOPIXEL, NPPIN>(leds, numkeys);
+#endif
 #if defined (ADAFRUIT_TRINKET_M0)
     // Use DotStar LED built into the trinket M0
     FastLED.addLeds<DOTSTAR, INTERNAL_DS_DATA, INTERNAL_DS_CLK, BGR>(ds, 1);
@@ -530,7 +541,13 @@ int count;
 void speedCheck() {
     count++;
     if ((millis() - speedCheckMillis) > 1000){
-        Serial.println(count);
+        Serial.print("Wipe flag: "); Serial.println(wipeFlag);
+        Serial.print("Brightness: "); Serial.println(EEPROM.read(1));
+        Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
+        Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
+        Serial.print("Layer/profile mode: "); Serial.println(EEPROM.read(4));
+        Serial.print("Profile: ");Serial.print(layer);Serial.print("/");Serial.println(EEPROM.read(5));
+        Serial.print("LPS: ");Serial.println(count);
         count = 0;
         speedCheckMillis = millis();
     }
@@ -970,12 +987,6 @@ void serialCheck() {
             // If special key is received, enter the configurator
             if (inChar == 'c') mainmenu();
         }
-        /*Serial.print("Wipe flag: "); Serial.println(wipeFlag);
-        Serial.print("Brightness: "); Serial.println(EEPROM.read(1));
-        Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
-        Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
-        Serial.print("Layer/profile mode: "); Serial.println(EEPROM.read(4));
-        Serial.print("Profile: ");Serial.print(layer);Serial.print("/");Serial.println(EEPROM.read(255));*/
 
         remapMillis = millis();
     }
@@ -998,8 +1009,8 @@ void loop() {
     keyboard();
     idle();
     // Debug check for loops per second
-    // speedCheck();
-#ifndef DEBUG
-    serialCheck();
+#ifdef DEBUG
+    speedCheck();
 #endif
+    serialCheck();
 }

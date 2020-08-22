@@ -27,6 +27,7 @@ FastLED as it is SIGNIFICANTLY faster.
 - [x] Add mouse support
     - [x] Add MB4 and MB5
 - [x] Add LED effects for remapping (color for layer and white for currently mapping key.)
+- [x] Support for RGBW LEDs (not yet implemented within the FastLED library)
 
 # Maintenance
 - [x] Clean up EEPROM addresses.

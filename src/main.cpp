@@ -38,7 +38,7 @@ uint8_t bpsCount;
 
 // FreeTouch
 int touchValue;
-const int touchThreshold = 800;
+const int touchThreshold = 300;
 
 // Default idle time
 byte idleMinutes = 5;
@@ -68,10 +68,10 @@ bool anyPressed = 0;
 // Current layer selection and layer/profile seleciton
 uint8_t layer = 0;
 // Using a byte here because it needs to be saved as a byte to EEPROM anyway.
-uint8_t LayerEn = 1;
+uint8_t LayerEn = 2;
 
-// Leave 10 bytes for general settings before colors
-const byte colAddr = 10;
+// Leave space for general settings before colors
+const byte colAddr = 20;
 // Start mapping after colors in EEPROM
 const byte mapAddr = colAddr+numkeys;
 

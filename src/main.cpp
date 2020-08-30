@@ -365,7 +365,8 @@ void keyboard() {
             // Set color based on selected profile
             uint8_t hue = (255/numkeys) * layer;
             for(uint8_t i = 0; i < numkeys; i++) {
-                leds[i] = CHSV(hue,255,255);
+                uint8_t z = ledMap[i];
+                leds[z] = CHSV(hue,255,255);
             }
             // Also apply color to dotstar
 #if defined (ADAFRUIT_TRINKET_M0)
@@ -401,9 +402,9 @@ void keyboard() {
 void wheel(){
     static uint8_t hue;
     for(uint8_t i = 0; i < numkeys; i++) {
-        float z = i;
-        if (pressed[i]) leds[i] = CHSV(hue+(z*64),255,255);
-        else leds[i] = 0xFFFFFF;
+        uint8_t z = ledMap[i];
+        if (pressed[i]) leds[z] = CHSV(hue+(z*64),255,255);
+        else leds[z] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
@@ -418,8 +419,9 @@ uint8_t selected;
 void highlightSelected(){
     uint8_t hue = (255/numkeys) * (mappingLayer-1);
     for(uint8_t i = 0; i < numkeys; i++) {
-        leds[i] = CHSV(hue,255,255);
-        if (i == selected) leds[i] = 0xFFFFFF;
+        uint8_t z = ledMap[i];
+        leds[z] = CHSV(hue,255,255);
+        if (i == selected) leds[z] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
@@ -465,9 +467,11 @@ void rbFade(){
 
 // Custom colors
 void custom(){
+    // Iterate through keys
     for(int i = 0; i < numkeys; i++) {
-        uint8_t z = gridMap[i];
-        if (pressed[i]) leds[z] = CHSV(custColor[z],255,255);
+        // adjust LED order for special keypads
+        uint8_t z = ledMap[i];
+        if (pressed[i]) leds[z] = CHSV(custColor[i],255,255);
         else leds[z] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
@@ -496,7 +500,7 @@ void bps(){
     if (lastColor < bpsColor) lastColor++;
 
     for(int i = 0; i < numkeys; i++) {
-        uint8_t z = gridMap[i];
+        uint8_t z = ledMap[i];
         if (pressed[i]) leds[z] = CHSV(lastColor+100,255,255);
         else leds[z] = 0xFFFFFF;
     }

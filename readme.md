@@ -22,6 +22,7 @@ This is a complete rewrite of the firmware for ALL PC keypads. It's intended to 
 - [x] Mouse button support for M1-M5 keys
 - [x] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
 - [x] Support for RGBW LEDs (not yet implemented within the FastLED library)
+- [ ] Allow changing touch sensitivity in the configurator.
 
 # Installation
 

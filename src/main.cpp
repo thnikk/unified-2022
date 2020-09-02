@@ -38,7 +38,7 @@ uint8_t bpsCount;
 
 // FreeTouch
 int touchValue;
-const int touchThreshold = 300;
+const int touchThreshold = 500;
 
 // Default idle time
 byte idleMinutes = 5;
@@ -212,7 +212,7 @@ void checkTouch() {
 #else
 // Regular models can just iterate with a for loop.
 void checkSwitch() {
-    for(uint8_t x=0; x<=numkeys; x++){
+    for(uint8_t x=0; x<numkeys; x++){
         bounce[x].update();
         pressed[x] = bounce[x].read();
         if (!pressed[x]) anyPressed = 1;

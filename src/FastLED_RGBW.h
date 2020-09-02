@@ -42,13 +42,26 @@ struct CRGBW  {
 		w = wht;
 	}
 
-	inline void operator = (const CRGB c) __attribute__((always_inline)){
-		this->r = c.r;
-		this->g = c.g;
-		this->b = c.b;
-		this->white = 0;
-	}
+	CRGBW(uint8_t rd, uint8_t grn, uint8_t blu){ // If we pass in three values, correct for white
+        w = min(rd, grn);
+        w = min(w, blu); // Now w is the smallest of the three values
+
+        r = rd - w;
+        g = grn - w;
+        b = blu - w;
+    }
+
+    inline void operator = (const CRGB c) __attribute__((always_inline)){ // Turn RGB into RGBW with automatic white correction
+        uint8_t w = min(c.r, c.g);
+        w = min(w, c.b); // Now w is the smallest of the three values
+
+        this->r = c.r - w;
+        this->g = c.g - w;
+        this->b = c.b - w;
+        this->w = w;
+    }
 };
+
 
 inline uint16_t getRGBWsize(uint16_t nleds){
 	uint16_t nbytes = nleds * 4;

@@ -125,6 +125,18 @@ uint8_t mapping[][4] = {
 {SK_F13,SK_F14,SK_F15,SK_F16},
 {SK_MB1,SK_MB2,SK_MB4,SK_MB5}
 };
+#elif defined (MACRO)
+const uint8_t ledMap[] = {0,1,2,5,4,3};
+const float gridMap[] = {0,1,2,2,1,0};
+uint8_t mapping[][6] = {
+{SK_Z,SK_X,SK_C,SK_V,SK_D,SK_F},
+{SK_Z,SK_X,SK_C,SK_V,SK_D,SK_F},
+{SK_Z,SK_X,SK_C,SK_V,SK_D,SK_F},
+{SK_Z,SK_X,SK_C,SK_V,SK_D,SK_F},
+{SK_Z,SK_X,SK_C,SK_V,SK_D,SK_F},
+{SK_Z,SK_X,SK_C,SK_V,SK_D,SK_F}
+};
+
 // Set keys past 2 even if only 2 exist
 #else
 const uint8_t ledMap[] = {0,1,2,3};

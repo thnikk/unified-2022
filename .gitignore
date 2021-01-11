@@ -1,3 +1,4 @@
 .pio/
 lib/
+firmware/
 .travis.yml

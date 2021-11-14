@@ -7,14 +7,17 @@
 // This should also use
 
 // Pins for Trinket-based 2/4k keypads
-#if defined (ADAFRUIT_TRINKET_M0) && ! defined (TOUCH)
+#if defined (QTPY)
+const uint8_t pins[] = { 0, 1, 2, 4, 5 };
+#define NPPIN 3
+#elif defined (ADAFRUIT_TRINKET_M0) && ! defined (TOUCH)
 const uint8_t pins[] = { 0, 2, 20, 19, 3 };
 #define NPPIN 1
 #endif
 
 
 // Dotstar for all trinket-based models
-#if defined (ADAFRUIT_TRINKET_M0)
+#if defined (ADAFRUIT_TRINKET_M0) || defined (QTPY)
 CRGB ds[1];
 #endif
 
@@ -43,19 +46,22 @@ const uint8_t pins[] = { 2, 3, 7, 9, 10, 11, 12, 4 };
 
 
 // Pins for Trinket-based 2k touch keypad
-#if defined (ADAFRUIT_TRINKET_M0) && defined (TOUCH)
+#if defined (ADAFRUIT_TRINKET_M0) || defined (QTPY)
+#if defined (TOUCH)
 const uint8_t pins[] = { 3, 4, 1 };
 #define NPPIN 0
 #define TPIN 1
 Adafruit_FreeTouch qt = Adafruit_FreeTouch(1, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 Adafruit_FreeTouch qt_1 = Adafruit_FreeTouch(3, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 Adafruit_FreeTouch qt_2 = Adafruit_FreeTouch(4, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
-#elif defined (ADAFRUIT_TRINKET_M0) && ! defined (TOUCH)
+#elif defined (ADAFRUIT_TRINKET_M0) || defined (QTPY)
+#if ! defined (TOUCH)
 Adafruit_FreeTouch qt = Adafruit_FreeTouch(4, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+#endif
 #elif defined (SAMD21MINI)
 Adafruit_FreeTouch qt = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 #endif
-
+#endif
 
 #if defined (TOUCH)
     #define CHECK checkTouch();

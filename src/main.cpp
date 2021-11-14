@@ -68,7 +68,7 @@ bool anyPressed = 0;
 // Current layer selection and layer/profile seleciton
 uint8_t layer = 0;
 // Using a byte here because it needs to be saved as a byte to EEPROM anyway.
-uint8_t LayerEn = 1;
+uint8_t LayerEn = 3;
 
 // Leave space for general settings before colors
 const byte colAddr = 20;
@@ -387,6 +387,10 @@ void keyboard() {
             }
         }
     }
+    else if (LayerEn=3) {
+        if (!pressed[numkeys]) KBP(KEY_ESC);
+        if (pressed[numkeys]) KBR(KEY_ESC);
+    }
     keyPress();
 
 
@@ -613,6 +617,7 @@ void plExp(){
     Serial.println(F("0 for Disabled"));
     Serial.println(F("1 for Layer"));
     Serial.println(F("2 for Profile"));
+    Serial.println(F("3 for Escape (Legacy mode)"));
     Serial.print(F("Current value: "));
     Serial.println(LayerEn);
 }

@@ -6,7 +6,7 @@ This is a complete rewrite of the firmware for ALL PC keypads. It's intended to 
 
 - [x] Uses FastLED instead of slower NeoPixel and DotStar libraries (also allows for easier programming of color changes.)
 - [ ] Support input methods:
-    - [x] direct
+    - [x] direct (key to pin mapping)
     - [ ] matrix
         - This will probably be done later when I make a real matrix model for real (like a 3x3.)
     - [x] touch
@@ -23,6 +23,7 @@ This is a complete rewrite of the firmware for ALL PC keypads. It's intended to 
 - [x] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
 - [x] Support for RGBW LEDs (not yet implemented within the FastLED library)
 - [ ] Allow changing touch sensitivity in the configurator.
+- [ ] Add max values for incoming data through serial monitor
 
 # Installation
 

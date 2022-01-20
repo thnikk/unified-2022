@@ -5,21 +5,15 @@
 #include <FastLED.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
+#include <FlashAsEEPROM.h>
 
-// FastLED with RGBW
-#ifdef RGBW
-#include "FastLED_RGBW.h"
-CRGBW leds[numkeys];
-CRGB *ledsRGB = (CRGB *) &leds[0];
-#else
-CRGBArray<numkeys> leds;
-#endif
+CRGBArray<numleds> leds;
 
-Bounce * bounce = new Bounce[numkeys+1];
+Bounce * bounce = new Bounce[numkeys];
 
 // buffer for keypresses
-bool pressed[numkeys+1];
-bool lastPressed[numkeys+1];
+bool pressed[numkeys];
+bool lastPressed[numkeys];
 
 // Starting and max brightness
 uint8_t b = 127;
@@ -46,9 +40,6 @@ byte idleMinutes = 5;
 // Millis timer for idle check
 unsigned long pm;
 
-// Version (Update this value to update EEPROM for AVR boards)
-uint8_t version = 4;
-
 // Display names for each key (in specific order, do not re-arrange)
 const String friendlyKeys[] = {
     "L_CTRL", "L_SHIFT", "L_ALT", "L_GUI", "R_CTRL", "R_SHIFT",
@@ -65,67 +56,18 @@ const byte numSpecial = 71;
 // Check if any key has been pressed in the loop.
 bool anyPressed = 0;
 
-// Current layer selection and layer/profile seleciton
-uint8_t layer = 0;
-// Using a byte here because it needs to be saved as a byte to EEPROM anyway.
-uint8_t LayerEn = 3;
-
 // Leave space for general settings before colors
 const byte colAddr = 20;
 // Start mapping after colors in EEPROM
 const byte mapAddr = colAddr+numkeys;
 
-// Debug check to see if flash has been wiped since boot.
-bool wipeFlag = 0;
-
-// Layer currently being mapped
-uint8_t mappingLayer;
-
 void eepromLoad(){
     bMax = EEPROM.read(1);
     ledMode = EEPROM.read(2);
     idleMinutes = EEPROM.read(3);
-    LayerEn = EEPROM.read(4);
-    layer = EEPROM.read(5);
-    for (uint8_t x=0;x<numkeys;x++) custColor[x] = EEPROM.read(colAddr+x);
-    for (uint8_t y=0; y<numkeys; y++) {
-        for (uint8_t x=0; x<numkeys; x++) {
-            int address=mapAddr+(y*numkeys)+x;
-            mapping[y][x] = EEPROM.read(address);
-        }
-    }
-}
-
-void eepromInit(){
-    // If version from EEPROM/flash doesn't match, reset EEPROM values
-    // There's a builtin function for this in the FlashStorage library,
-    // but this is backwards-compatible with the EEPROM library for the
-    // AVR 7K model.
-    if (EEPROM.read(0) != version){
-        wipeFlag = 1;
-        EEPROM.write(0, version);
-        // Assign default values
-        EEPROM.write(1, bMax);
-        b = bMax;
-        EEPROM.write(2, ledMode);
-        EEPROM.write(3, idleMinutes);
-        EEPROM.write(4, LayerEn);
-        EEPROM.write(5, layer);
-        for (uint8_t x=0; x<numkeys; x++) EEPROM.write(colAddr+x, custColor[x]);
-        for (uint8_t y=0; y<numkeys; y++) { // Mapping
-            for (uint8_t x=0; x<numkeys; x++) {
-                int address=mapAddr+(y*numkeys)+x;
-                EEPROM.write(address, mapping[y][x]);
-            }
-        }
-        // Load default values afer initializing.
-        eepromLoad();
-        // Write values
-        COMMIT
-    }
-    // Otherwise, just restore values
-    else {
-        eepromLoad();
+    for (uint8_t x=0;x<numkeys;x++) {
+        custColor[x] = EEPROM.read(colAddr+x);
+        mapping[x] = EEPROM.read(mapAddr+x);
     }
 }
 
@@ -134,117 +76,77 @@ void eepromUpdate(){
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
     if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
-    if (LayerEn != EEPROM.read(4)) EEPROM.write(4, LayerEn);
-    for (uint8_t x=0; x<numkeys; x++) if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
-    for (uint8_t y=0; y<numkeys; y++) { // Mapping
-        for (uint8_t x=0; x<numkeys; x++) {
-            int address=mapAddr+(y*numkeys)+x;
-            if (mapping[y][x] != EEPROM.read(address)) EEPROM.write(address, mapping[y][x]);
-        }
+    for (uint8_t x=0; x<numkeys; x++) {
+        if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
+        if (mapping[x] != EEPROM.read(mapAddr+x)) EEPROM.write(mapAddr+x, mapping[x]);
     }
-    COMMIT
+    EEPROM.commit();
 }
 
 void setup() {
     // Set the serial baudrate
     Serial.begin(9600);
 
-    //FastLED with RGBW
-#ifdef RGBW
-    FastLED.addLeds<WS2812B, NPPIN, RGB>(ledsRGB, getRGBWsize(numkeys));
-#else
-    FastLED.addLeds<NEOPIXEL, NPPIN>(leds, numkeys);
-#endif
-#if defined (ADAFRUIT_TRINKET_M0)
-    // Use DotStar LED built into the trinket M0
-    FastLED.addLeds<DOTSTAR, INTERNAL_DS_DATA, INTERNAL_DS_CLK, BGR>(ds, 1);
-#endif
+    // Initialize LEDs
+    FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
 
     // Set brightness
     FastLED.setBrightness(255);
 
     // Initialize EEPROM
-    eepromInit();
+    eepromUpdate();
+    eepromLoad();
 
-#ifndef TOUCH
-    // Set pullups and attach pins to debounce lib with debounce time (in ms)
-#ifdef AVR
-    for (uint8_t x=0; x<numkeys+1; x++) {
+// Initialize touchpads
+#ifdef TOUCH
+    #if numkeys >=1
+        qt_1.begin();
+    #endif
+    #if numkeys >= 2
+        qt_2.begin();
+    #endif
+    #if numkeys >= 3
+        qt_3.begin();
+    #endif
+    #if numkeys >= 4
+        qt_4.begin();
+    #endif
 #else
+    // Set pullups and attach pins to debounce lib with debounce time (in ms)
     for (uint8_t x=0; x<numkeys; x++) {
-#endif
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
         bounce[x].interval(20);
     }
-#else
-    qt_1.begin();
-    qt_2.begin();
-#if numkeys == 4
-    qt_3.begin();
-    qt_4.begin();
-#endif
-#endif
-
-    // Start freetouch for side button
-#ifndef AVR
-    qt.begin();
 #endif
 
     NKROKeyboard.begin();
     Mouse.begin();
 }
 
+void checkKeys() {
+    anyPressed = 0;
 #if defined (TOUCH)
-// Touch models need to manually have each pressed value assigned.
-void checkTouch() {
     touchValue = qt_1.measure();
     if (touchValue > 500) pressed[0] = 0;
     else if ( touchValue < 450 ) pressed[0] = 1;
     touchValue = qt_2.measure();
     if (touchValue > 500) pressed[1] = 0;
     else if ( touchValue < 450 ) pressed[1] = 1;
-#if numkeys == 4
-#endif
-    // Always update anyPressed
-    for(uint8_t x=0; x<=numkeys; x++) if (!pressed[x]) anyPressed = 1;
-}
 #else
 // Regular models can just iterate with a for loop.
-void checkSwitch() {
     for(uint8_t x=0; x<numkeys; x++){
         bounce[x].update();
         pressed[x] = bounce[x].read();
         if (!pressed[x]) anyPressed = 1;
     }
-}
 #endif
-
-unsigned long checkMillis;
-// All inputs are processed into pressed array
-void checkState() {
-    // Limiting input polling to polling rate increases speed by 17x!
-    if ((millis() - checkMillis) >= 1) {
-        // Write bounce values to main pressed array
-        anyPressed = 0;
-
-        // Use models.h defined check function
-        CHECK
-
-#ifndef AVR
-        // Get current touch value and write to main array
-        touchValue = qt.measure();
-        // If it goes over the threshold value, the button is pressed
-        if (touchValue > touchThreshold) pressed[numkeys] = 0;
-        // To release, it must go under the threshold value by an extra 50 to avoid constantly changing
-        else if ( touchValue < touchThreshold-50 ) pressed[numkeys] = 1;
-#endif
-        checkMillis=millis();
-    }
+    // Always update anyPressed
+    for(uint8_t x=0; x<=numkeys; x++) if (!pressed[x]) anyPressed = 1;
 }
 
 // Check x key state
-void keyCheck(uint8_t x) {
+void serialCheck(uint8_t x) {
     Serial.print("Key ");
     Serial.print(x+1);
     Serial.print(" has been ");
@@ -252,19 +154,17 @@ void keyCheck(uint8_t x) {
     if (pressed[x] == 1) Serial.println("released.");
 }
 
-uint8_t lastLayer;
-void keyPress() {
+void keyboard() {
     for (uint8_t x=0; x<numkeys; x++){
         // If the button state changes, press/release a key.
         if ( pressed[x] != lastPressed[x] ){
 #ifdef DEBUG
-            keyCheck(x); // Only prints on state change
+            serialCheck(x); // Only prints on state change
 #endif
             if (!pressed[x]) bpsCount++;
             pm = millis();
-            uint8_t key = mapping[layer][x];
             // Check press state and press/release key
-            switch(key){
+            switch(mapping[x]){
                 // Key exceptions need to go here for NKROKeyboard
                 // It would be really nice if there was a better way to do this,
                 // but NKROKeyboard requires the literal key definition
@@ -340,7 +240,7 @@ void keyPress() {
                 case 197: if (!pressed[x]) Mouse.press(MOUSE_MIDDLE); if (pressed[x]) Mouse.release(MOUSE_MIDDLE); break;
                 case 198: if (!pressed[x]) Mouse.press(MOUSE_PREV); if (pressed[x]) Mouse.release(MOUSE_PREV); break;
                 case 199: if (!pressed[x]) Mouse.press(MOUSE_NEXT); if (pressed[x]) Mouse.release(MOUSE_NEXT); break;
-                default: if (!pressed[x]) KBP(key); if (pressed[x]) KBR(key); break;
+                default: if (!pressed[x]) KBP(mapping[x]); if (pressed[x]) KBR(mapping[x]); break;
             }
             // Save last pressed state to buffer
             lastPressed[x] = pressed[x];
@@ -348,67 +248,12 @@ void keyPress() {
     }
 }
 
-// Compares inputs to last inputs and presses/releases key based on state change
-void keyboard() {
-
-    // If the side button is held, release any keys that are held down.
-    if (LayerEn == 1) {
-        layer = !pressed[numkeys];
-    }
-    else if (LayerEn == 2) {
-        // If the side button is held
-        while (!pressed[numkeys]) {
-
-            // Check keys or we'd be stuck in here forever.
-            checkState();
-
-            // Set color based on selected profile
-            uint8_t hue = (255/numkeys) * layer;
-            for(uint8_t i = 0; i < numkeys; i++) {
-                uint8_t z = ledMap[i];
-                leds[z] = CHSV(hue,255,255);
-            }
-            // Also apply color to dotstar
-#if defined (ADAFRUIT_TRINKET_M0)
-            ds[0] = CHSV(hue,255,255);
-#endif
-            FastLED.show();
-
-            // Change profile based on key pressed
-            for (byte x=0; x<numkeys; x++) {
-                if (!pressed[x]) {
-                    layer = x;
-                }
-            }
-            // Update layer value if it's changed from the EEPROM value
-            if (layer != EEPROM.read(5)) {
-                EEPROM.write(5, layer);
-                COMMIT
-            }
-        }
-    }
-    else if (LayerEn=3) {
-        if (!pressed[numkeys]) KBP(KEY_ESC);
-        if (pressed[numkeys]) KBR(KEY_ESC);
-    }
-    keyPress();
-
-
-    if (lastLayer != layer) {
-        NKROKeyboard.releaseAll();
-        Mouse.releaseAll();
-        lastLayer = layer;
-    }
-
-}
-
 // Cycle through rainbow
 void wheel(){
     static uint8_t hue;
-    for(uint8_t i = 0; i < numkeys; i++) {
-        uint8_t z = ledMap[i];
-        if (pressed[i]) leds[z] = CHSV(hue+(z*64),255,255);
-        else leds[z] = 0xFFFFFF;
+    for(uint8_t i = 0; i < numleds; i++) {
+        if (pressed[i]) leds[i] = CHSV(hue+(i*20),255,255);
+        else leds[i] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
@@ -418,14 +263,13 @@ void wheel(){
     FastLED.show();
 }
 
-// Change color based on the current layer and highlight the key being remapped.
+// Highlight the key being remapped.
 uint8_t selected;
 void highlightSelected(){
-    uint8_t hue = (255/numkeys) * (mappingLayer-1);
+    uint8_t hue = (255/numkeys);
     for(uint8_t i = 0; i < numkeys; i++) {
-        uint8_t z = ledMap[i];
-        leds[z] = CHSV(hue,255,255);
-        if (i == selected) leds[z] = 0xFFFFFF;
+        leds[i] = CHSV(hue,255,255);
+        if (i == selected) leds[i] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
@@ -449,8 +293,7 @@ void rbFade(){
             sat[i]=0;
             val[i]=255;
         }
-        uint8_t z = ledMap[i]; // Allows custom LED mapping (for grids)
-        leds[z] = CHSV(hue+(i*50),sat[i],val[i]);
+        leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     static int satDS;
@@ -474,9 +317,8 @@ void custom(){
     // Iterate through keys
     for(int i = 0; i < numkeys; i++) {
         // adjust LED order for special keypads
-        uint8_t z = ledMap[i];
-        if (pressed[i]) leds[z] = CHSV(custColor[i],255,255);
-        else leds[z] = 0xFFFFFF;
+        if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
+        else leds[i] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     // Set DotStar to left key color
@@ -504,9 +346,8 @@ void bps(){
     if (lastColor < bpsColor) lastColor++;
 
     for(int i = 0; i < numkeys; i++) {
-        uint8_t z = ledMap[i];
-        if (pressed[i]) leds[z] = CHSV(lastColor+100,255,255);
-        else leds[z] = 0xFFFFFF;
+        if (pressed[i]) leds[i] = CHSV(lastColor+100,255,255);
+        else leds[i] = 0xFFFFFF;
     }
 #if defined (ADAFRUIT_TRINKET_M0)
     if (anyPressed == 0) ds[0] = CHSV(lastColor+100,255,255);
@@ -549,12 +390,9 @@ int count;
 void speedCheck() {
     count++;
     if ((millis() - speedCheckMillis) > 1000){
-        Serial.print("Wipe flag: "); Serial.println(wipeFlag);
         Serial.print("Brightness: "); Serial.println(EEPROM.read(1));
         Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
         Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
-        Serial.print("Layer/profile mode: "); Serial.println(EEPROM.read(4));
-        Serial.print("Profile: ");Serial.print(layer);Serial.print("/");Serial.println(EEPROM.read(5));
         Serial.print("LPS: ");Serial.println(count);
         count = 0;
         speedCheckMillis = millis();
@@ -603,23 +441,6 @@ void idleExp(){
     Serial.println(F("A value of 0 will disable the idle timeout feature."));
     Serial.print(F("Current value: "));
     Serial.println(idleMinutes);
-}
-void plExp(){
-    Serial.println(F("Please choose the side button mode."));
-    Serial.print(F("Profile mode will give you "));
-    Serial.print(numkeys);
-    Serial.println(F(" profiles to switch between by holding"));
-    Serial.println(F("the side button and pressing the corresponding key."));
-    Serial.println(F("Layer mode will make the side button function as a layer shift key and"));
-    Serial.println(F("give you access to a second layer of keys while held."));
-    Serial.println(F("Disabled will disable the side button altogether."));
-    Serial.println(F("Enter: "));
-    Serial.println(F("0 for Disabled"));
-    Serial.println(F("1 for Layer"));
-    Serial.println(F("2 for Profile"));
-    Serial.println(F("3 for Escape (Legacy mode)"));
-    Serial.print(F("Current value: "));
-    Serial.println(LayerEn);
 }
 
 void keyTable() {
@@ -697,22 +518,8 @@ void printBlock(uint8_t block) {
             // Print key names and numbers
             Serial.println();
             Serial.println(F("Current values: "));
-            byte max;
-            if (LayerEn == 1) {
-                max = 2;
-            }
-            else if (LayerEn == 2) {
-                max = numkeys;
-            }
-            else max = 1;
-
-            for (uint8_t y=0;y<max;y++) {
-                Serial.print("Layer ");
-                Serial.print(y+1);
-                Serial.print(": ");
-                for (uint8_t x=0;x<numkeys;x++) { keyLookup(mapping[y][x]); if (x<numkeys-1) Serial.print(", "); }
-                Serial.println();
-            }
+            for (uint8_t x=0;x<numkeys;x++) { keyLookup(mapping[x]); if (x<numkeys-1) Serial.print(", "); }
+            Serial.println();
             break;
     }
     // Add extra line break
@@ -849,83 +656,24 @@ void customMenu(){
     }
 }
 
-void printMapOpt(byte max) {
-    Serial.println(F("0 to exit"));
-    for (byte x=0;x<max;x++) {
-        Serial.print(x+1);
-        Serial.print(F(" to remap layer "));
-        Serial.println(x+1);
-    }
-
-}
-
 // Menu for remapping
 void remapMenu(){
-    bool skipLayerCheck = 0;
-    // Main loop
-    while(true){
-    if (LayerEn == 2) {
-        Serial.println(F("Which profile would you like to remap?"));
-        printMapOpt(numkeys);
-    }
-    else if (LayerEn == 1) {
-        Serial.println(F("Which layer would you like to remap?"));
-        printMapOpt(2);
-    }
-    else {
-        skipLayerCheck = 1;
-        mappingLayer = 1;
-        printMapOpt(1);
-    }
+
     printBlock(5);
 
-    if (skipLayerCheck == 0) {
-        // Select layer
-        bool layerCheck = 0;
-        while(layerCheck == 0){
-            effects(5, 0);
-            int incomingByte = Serial.read();
-            if (incomingByte > 0){
-                byte max;
-                if (LayerEn == 1) {
-                    max = 2;
-                }
-                else {
-                    max = numkeys;
-                }
-                if (incomingByte>=48&&incomingByte<=48+max) {
-                    mappingLayer = incomingByte-48;
-                    if (mappingLayer == 0) layerCheck = 1; // Return before printing if layer is 0
-                    else layerCheck = 1;
-                }
-                else Serial.println(F("Please enter a valid value."));
-            }
-        }
-    }
-
-    // Exit if user inputs 0
-    if (mappingLayer == 0) return;
-
-    // Remap selected layer
     keyTable();
-    Serial.print(F("Layer "));
-    Serial.print(mappingLayer);
-    Serial.print(F(": "));
     for(uint8_t x=0;x<numkeys;x++){
         selected = x;
         uint8_t key = parseKey();
         keyLookup(key);
         // Subtract 1 because array is 0 indexed
-        mapping[mappingLayer-1][x] = key;
+        mapping[x] = key;
         // Separate by comma if not last value
-        if (x<numkeys-1) Serial.print(F(", "));
+        if (x<numkeys) Serial.print(F(", "));
         // Otherwise, create newline
         else Serial.println();
     }
     Serial.println();
-    // Exit remapper if only one layer is being remapped.
-    if (skipLayerCheck == 1) return;
-    }
 }
 
 // Main menu
@@ -967,11 +715,6 @@ void mainmenu() {
                     idleMinutes = brightMenu();
                     printBlock(1);
                     break;
-                case(6):
-                    plExp();
-                    LayerEn = brightMenu();
-                    printBlock(1);
-                    break;
                 default:
                     Serial.println(F("Please enter a valid value."));
                     break;
@@ -1011,7 +754,7 @@ void idle(){
 
 void loop() {
     // Update key state to check for button presses
-    checkState();
+    checkKeys();
     // Make lights happen
     effects(10, ledMode);
     // Convert key presses to actual keyboard keys

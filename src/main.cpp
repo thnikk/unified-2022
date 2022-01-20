@@ -23,6 +23,8 @@ uint8_t bMax = b;
 uint8_t ledMode = 0;
 uint8_t effectSpeed = 10;
 
+uint8_t debounceInterval = 4;
+
 // Colors for custom LED mode
 // These are the initial values stored before changed through the remapper
 uint8_t custColor[] = {224,192,224,192,224,192,224};
@@ -65,6 +67,7 @@ void eepromLoad(){
     bMax = EEPROM.read(1);
     ledMode = EEPROM.read(2);
     idleMinutes = EEPROM.read(3);
+    debounceInterval = EEPROM.read(4);
     for (uint8_t x=0;x<numkeys;x++) {
         custColor[x] = EEPROM.read(colAddr+x);
         mapping[x] = EEPROM.read(mapAddr+x);
@@ -76,6 +79,7 @@ void eepromUpdate(){
     if (bMax != EEPROM.read(1)) EEPROM.write(1, bMax);
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
     if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
+    if (debounceInterval != EEPROM.read(4)) EEPROM.write(4, debounceInterval);
     for (uint8_t x=0; x<numkeys; x++) {
         if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
         if (mapping[x] != EEPROM.read(mapAddr+x)) EEPROM.write(mapAddr+x, mapping[x]);
@@ -412,7 +416,7 @@ void menu(){
     Serial.println(F("3 to set the brightness"));
     Serial.println(F("4 to set the custom colors"));
     Serial.println(F("5 to set the idle timeout"));
-    Serial.println(F("6 to set side button mode"));
+    Serial.println(F("6 to set the bounce interval"));
 }
 void LEDmodes(){
     Serial.println(F("Select an LED mode. Enter:"));
@@ -441,6 +445,11 @@ void idleExp(){
     Serial.println(F("A value of 0 will disable the idle timeout feature."));
     Serial.print(F("Current value: "));
     Serial.println(idleMinutes);
+}
+void debounceExp(){
+    Serial.println(F("Enter a debounce value between 0 and 255."));
+    Serial.print(F("Current value: "));
+    Serial.print(debounceInterval);
 }
 
 void keyTable() {
@@ -509,9 +518,9 @@ void printBlock(uint8_t block) {
         case 4: // Custom colors
             custExp();
             Serial.print(F("Current values: "));
-            for (uint8_t x=0;x<numkeys;x++) {
+            for (uint8_t x=0;x<numleds;x++) {
                 Serial.print(custColor[x]);
-                if (x != numkeys-1) Serial.print(", ");
+                if (x != numleds-1) Serial.print(", ");
             }
             break;
         case 5: // Remapper
@@ -520,6 +529,9 @@ void printBlock(uint8_t block) {
             Serial.println(F("Current values: "));
             for (uint8_t x=0;x<numkeys;x++) { keyLookup(mapping[x]); if (x<numkeys-1) Serial.print(", "); }
             Serial.println();
+            break;
+        case 6: // Brightness
+            debounceExp();
             break;
     }
     // Add extra line break
@@ -639,7 +651,7 @@ uint8_t brightMenu(){
 void customMenu(){
     printBlock(4);
     while(true){
-        for(uint8_t x=0;x<numkeys;x++){
+        for(uint8_t x=0;x<numleds;x++){
             Serial.print(F("Color for key "));
             Serial.print(x+1);
             Serial.print(": ");
@@ -713,6 +725,12 @@ void mainmenu() {
                 case(5):
                     idleExp();
                     idleMinutes = brightMenu();
+                    printBlock(1);
+                    break;
+                case(6):
+                    debounceExp();
+                    debounceInterval = brightMenu();
+                    for (uint8_t x=0; x<=numleds; x++) bounce[x].interval(debounceInterval);
                     printBlock(1);
                     break;
                 default:

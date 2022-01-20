@@ -33,8 +33,7 @@ uint8_t custColor[] = {224,192,224,192,224,192,224};
 uint8_t bpsCount;
 
 // FreeTouch
-int touchValue;
-const int touchThreshold = 800;
+int threshold[] = { 700, 700, 600, 400 };
 
 // Default idle time
 byte idleMinutes = 5;
@@ -103,12 +102,8 @@ void setup() {
 
 // Initialize touchpads
 #ifdef TOUCH
-    #if numkeys >=1
-        qt_1.begin();
-    #endif
-    #if numkeys >= 2
-        qt_2.begin();
-    #endif
+    qt_1.begin();
+    qt_2.begin();
     #if numkeys >= 3
         qt_3.begin();
     #endif
@@ -131,12 +126,22 @@ void setup() {
 void checkKeys() {
     anyPressed = 0;
 #if defined (TOUCH)
-    touchValue = qt_1.measure();
-    if (touchValue > 500) pressed[0] = 0;
-    else if ( touchValue < 450 ) pressed[0] = 1;
+    int touchValue = qt_1.measure();
+    if (touchValue > threshold[0]) pressed[0] = 0;
+    else if ( touchValue < threshold[0] - 50 ) pressed[0] = 1;
     touchValue = qt_2.measure();
-    if (touchValue > 500) pressed[1] = 0;
-    else if ( touchValue < 450 ) pressed[1] = 1;
+    if (touchValue > threshold[1]) pressed[1] = 0;
+    else if ( touchValue < threshold[1] - 50 ) pressed[1] = 1;
+    #if numkeys >= 3
+        touchValue = qt_3.measure();
+        if (touchValue > threshold[2]) pressed[2] = 0;
+        else if ( touchValue < threshold[2] - 50 ) pressed[2] = 1;
+    #endif
+    #if numkeys >= 4
+        touchValue = qt_4.measure();
+        if (touchValue > threshold[3]) pressed[3] = 0;
+        else if ( touchValue < threshold[3] - 50 ) pressed[3] = 1;
+    #endif
 #else
 // Regular models can just iterate with a for loop.
     for(uint8_t x=0; x<numkeys; x++){

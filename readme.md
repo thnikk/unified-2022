@@ -1,6 +1,6 @@
-# Unified keypad code
+# 2022 Unified Firmare
 
-This is a complete rewrite of the firmware for ALL PC keypads. It's intended to be faster, more optimized, and more universal for all current and future models.
+This firmware is currently being used for my newer 2022 model keypads.
 
 ### Features
 
@@ -13,17 +13,21 @@ This is a complete rewrite of the firmware for ALL PC keypads. It's intended to 
 - [x] Uses patched version of HID Project library for NKRO support and additional mappable keys.
 - [x] Uses serial communication for all configuration.
 - [x] Idle mode with configurable timeout
-- [x] 3 modes for the side button:
-    1) Layer shift
-    2) Profile switch
-    3) Off
 - [ ] Multi-key mapping (ie. mapping key 1 to ctrl+alt+delete.)
     - This will use a lot of EEPROM space, and also creates a bit of confusion. F13-F24 + AutoHotKey may be the better way to go, but I'd like to keep this implemented for those that already use it.
 - [x] Mouse button support for M1-M5 keys
 - [x] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
-- [x] Support for RGBW LEDs (not yet implemented within the FastLED library)
 - [ ] Allow changing touch sensitivity in the configurator.
 - [ ] Add max values for incoming data through serial monitor
+
+# Omissions
+
+I have removed some features from the original firmware to simplify some of the code. The focus was on removing legacy code, as trying to keep it backwards compatible was adding too much complexity. These features may be re-implemented in the future. The removed features are:
+
+ - Multi-mode side button: This complicates storing mapping in EEPROM and conflicts with multi-key mapping. It's also less intuitive than having it just function as a normal button.
+ - RGBW LED support: This is also unnecessary complication as I exclusively use RGB LEDs now.
+ - AVR support: Any future 7k model will most likely use a SAMD21 board, so this is unnecessary.
+
 
 # Installation
 

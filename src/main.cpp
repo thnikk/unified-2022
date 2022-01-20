@@ -116,7 +116,7 @@ void setup() {
     for (uint8_t x=0; x<numkeys; x++) {
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
-        bounce[x].interval(20);
+        bounce[x].interval(4);
     }
 #endif
 
@@ -723,15 +723,12 @@ void mainmenu() {
     }
 }
 
-bool set;
 unsigned long remapMillis;
 void serialCheck() {
-    // Check for serial connection every 1s
-    if ((millis() - remapMillis) > 1000){
-        // If the serial monitor is opened, greet the user.
-        if (Serial && set == 0) { printBlock(0); set=1; }
-        // If closed, reset greet message.
-        if (!Serial) set = 0;
+    // Check for serial connection every 5s
+    if ((millis() - remapMillis) > 5000){
+        // Push greeting
+        printBlock(0);
 
         // Check incoming character if exists
         if (Serial.available() > 0) {

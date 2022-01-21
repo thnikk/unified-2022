@@ -110,6 +110,8 @@ void setup() {
     #if numkeys >= 4
         qt_4.begin();
     #endif
+        pinMode(12, OUTPUT);
+        digitalWrite(12, HIGH);
 #else
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
     for (uint8_t x=0; x<numkeys; x++) {
@@ -151,7 +153,7 @@ void checkKeys() {
     }
 #endif
     // Always update anyPressed
-    for(uint8_t x=0; x<=numkeys; x++) if (!pressed[x]) anyPressed = 1;
+    for(uint8_t x=0; x<numkeys; x++) if (!pressed[x]) anyPressed = 1;
 }
 
 // Check x key state
@@ -471,9 +473,10 @@ void keyTable() {
         lineLength += nameLength + 6;
         Serial.print(friendlyKeys[x]);
         nameLength = 9 - nameLength;
-        for (nameLength; nameLength > 0; nameLength--) { // Print a space
+        while (nameLength > 0) { // Print a space
             Serial.print(" ");
             lineLength++;
+            nameLength--;
         }
         if (x > 9) lineLength++;
         Serial.print(" = ");

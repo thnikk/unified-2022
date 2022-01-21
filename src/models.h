@@ -8,7 +8,6 @@
 #endif
 
 #ifdef TOUCH
-#define neopin 3
 Adafruit_FreeTouch qt_1 = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 Adafruit_FreeTouch qt_2 = Adafruit_FreeTouch(A1, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 Adafruit_FreeTouch qt_3 = Adafruit_FreeTouch(A2, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);

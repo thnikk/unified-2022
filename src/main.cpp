@@ -12,34 +12,34 @@ CRGBArray<numleds> leds;
 Bounce * bounce = new Bounce[numkeys];
 
 // buffer for keypresses
-bool pressed[numkeys];
-bool lastPressed[numkeys];
+static bool pressed[numkeys];
+static bool lastPressed[numkeys];
 
 // Starting and max brightness
-uint8_t b = 127;
-uint8_t bMax = b;
+static uint8_t b = 127;
+static uint8_t bMax = b;
 
 // Default LED mode and speed of effects
-uint8_t ledMode = 0;
-uint8_t effectSpeed = 10;
+static uint8_t ledMode = 0;
+static uint8_t effectSpeed = 10;
 
-uint8_t debounceInterval = 4;
+static uint8_t debounceInterval = 4;
 
 // Colors for custom LED mode
 // These are the initial values stored before changed through the remapper
-uint8_t custColor[] = {224,192,224,192,224,192,224};
+static uint8_t custColor[] = {224,192,224,192,224,192,224};
 
 // BPS
-uint8_t bpsCount;
+static uint8_t bpsCount;
 
 // FreeTouch
-int threshold[] = { 700, 700, 600, 400 };
+static int threshold[] = { 700, 700, 600, 400 };
 
 // Default idle time
-byte idleMinutes = 5;
+static byte idleMinutes = 5;
 
 // Millis timer for idle check
-unsigned long pm;
+static unsigned long pm;
 
 // Display names for each key (in specific order, do not re-arrange)
 const String friendlyKeys[] = {
@@ -55,7 +55,7 @@ const String friendlyKeys[] = {
 const byte numSpecial = 71;
 
 // Check if any key has been pressed in the loop.
-bool anyPressed = 0;
+static bool anyPressed = 0;
 
 // Leave space for general settings before colors
 const byte colAddr = 20;
@@ -283,7 +283,7 @@ void wheel(){
 }
 
 // Highlight the key being remapped.
-uint8_t selected;
+static uint8_t selected;
 void highlightSelected(){
     uint8_t hue = (255/numkeys);
     for(uint8_t i = 0; i < numkeys; i++) {
@@ -347,9 +347,9 @@ void custom(){
     FastLED.show();
 }
 
-unsigned long avgMillis;
-uint8_t bpsColor;
-uint8_t lastColor;
+static unsigned long avgMillis;
+static uint8_t bpsColor;
+static uint8_t lastColor;
 void bps(){
     // Update values once per second
     if ((millis() - avgMillis) > 1000) {
@@ -376,7 +376,7 @@ void bps(){
 
 }
 
-unsigned long effectMillis;
+static unsigned long effectMillis;
 void effects(uint8_t speed, uint8_t MODE) {
     // All LED modes should go here for universal speed control
     if ((millis() - effectMillis) > speed){
@@ -404,12 +404,12 @@ void effects(uint8_t speed, uint8_t MODE) {
     }
 }
 
-unsigned long serialDebugMillis;
-int count;
+static unsigned long serialDebugMillis;
+static int count;
 void serialDebug() {
     count++;
     if ((millis() - serialDebugMillis) > 1000){
-        Serial.print("Brightness: "); Serial.println(EEPROM.read(1));
+        Serial.print("Brightness: "); Serial.print(b); Serial.print(" / "); Serial.println(EEPROM.read(1));
         Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
         Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
         Serial.print("LPS: ");Serial.println(count);
@@ -759,7 +759,7 @@ void mainmenu() {
     }
 }
 
-unsigned long remapMillis;
+static unsigned long remapMillis;
 void serialCheck() {
     // Check for serial connection every 5s
     if ((millis() - remapMillis) > 5000){

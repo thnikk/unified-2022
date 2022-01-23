@@ -86,6 +86,15 @@ void eepromUpdate(){
     EEPROM.commit();
 }
 
+void eepromInit(){
+    // If it's not the first time, load from eeprom
+    if (EEPROM.read(0) == 1) eepromLoad();
+    // Otherwise, update EEPROM values with default variables
+    else eepromUpdate();
+    EEPROM.write(0, 1);
+    EEPROM.commit();
+}
+
 void setup() {
     // Set the serial baudrate
     Serial.begin(9600);
@@ -97,8 +106,7 @@ void setup() {
     FastLED.setBrightness(255);
 
     // Initialize EEPROM
-    eepromUpdate();
-    eepromLoad();
+    eepromInit();
 
 // Initialize touchpads
 #ifdef TOUCH
@@ -396,17 +404,19 @@ void effects(uint8_t speed, uint8_t MODE) {
     }
 }
 
-unsigned long speedCheckMillis;
+unsigned long serialDebugMillis;
 int count;
-void speedCheck() {
+void serialDebug() {
     count++;
-    if ((millis() - speedCheckMillis) > 1000){
+    if ((millis() - serialDebugMillis) > 1000){
         Serial.print("Brightness: "); Serial.println(EEPROM.read(1));
         Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
         Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
         Serial.print("LPS: ");Serial.println(count);
+        Serial.print("Seconds since last keypress: ");Serial.println((millis() - pm)/1000);
+        Serial.print("Idle minutes: ");Serial.println(idleMinutes);
         count = 0;
-        speedCheckMillis = millis();
+        serialDebugMillis = millis();
     }
 }
 
@@ -785,7 +795,7 @@ void loop() {
     idle();
     // Debug check for loops per second
 #ifdef DEBUG
-    speedCheck();
+    serialDebug();
 #endif
     serialCheck();
 }

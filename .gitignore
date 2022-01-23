@@ -1,4 +1,6 @@
 .pio/
 lib/
 firmware/
+uploader/
 .travis.yml
+*.zip

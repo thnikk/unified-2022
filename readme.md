@@ -35,7 +35,22 @@ I have removed some features from the original firmware to simplify some of the 
 
 Select the latest release in the sidebar to get the latest release of the firmware. Run upload.bat to update the firmware on your keypad.
 
-## Building from source
+## Building from source (command line)
+
+Building from source is very easy from the command line. Install `git` and `platformio` through your package manager (both available through MacOS homebrew, Ubuntu's apt, and Arch's pacman.) If platformio isn't available through your package manager, you can follow the platformio docs [here](https://docs.platformio.org/en/latest/core/installation.html) to get it.
+
+Clone the repo:
+`git clone https://github.com/thnikk/unified-2022`
+
+cd into the repo:
+`cd unified-2022`
+
+Compile and upload the code for your model (replace 2k with your model if you have a 4k or MegaTouch):
+`pio run -t upload -e 2k`
+
+That's it!
+
+## Building from source (GUI)
 
 ### Download
 Download and install VS Code from the link here:

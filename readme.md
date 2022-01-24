@@ -31,6 +31,11 @@ I have removed some features from the original firmware to simplify some of the 
 
 # Installation
 
+## Using releases
+
+Select the latest release in the sidebar to get the latest release of the firmware. Run upload.bat to update the firmware on your keypad.
+
+## Building from source
 
 ### Download
 Download and install VS Code from the link here:

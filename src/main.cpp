@@ -86,15 +86,6 @@ void eepromUpdate(){
     EEPROM.commit();
 }
 
-void eepromInit(){
-    // If it's not the first time, load from eeprom
-    if (EEPROM.read(0) == 1) eepromLoad();
-    // Otherwise, update EEPROM values with default variables
-    else eepromUpdate();
-    EEPROM.write(0, 1);
-    EEPROM.commit();
-}
-
 void setup() {
     // Set the serial baudrate
     Serial.begin(9600);
@@ -106,7 +97,8 @@ void setup() {
     FastLED.setBrightness(255);
 
     // Initialize EEPROM
-    eepromInit();
+    if (!EEPROM.isValid()) eepromUpdate();
+    else eepromLoad();
 
 // Initialize touchpads
 #ifdef TOUCH
@@ -748,7 +740,7 @@ void mainmenu() {
                 case(6):
                     debounceExp();
                     debounceInterval = brightMenu();
-                    for (uint8_t x=0; x<=numleds; x++) bounce[x].interval(debounceInterval);
+                    for (uint8_t x=0; x<numkeys; x++) bounce[x].interval(debounceInterval);
                     printBlock(1);
                     break;
                 default:

@@ -8,7 +8,7 @@
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
-CRGBArray<numleds> leds;
+CRGBArray<numkeys> leds;
 Adafruit_NeoPixel pixels(numleds, neopin, NEO_GRB + NEO_KHZ800);
 
 Bounce * bounce = new Bounce[numkeys];
@@ -390,7 +390,8 @@ void effects(uint8_t speed, uint8_t MODE) {
             case 3:
                 bps(); break;
             case 4:
-                highlightSelected(); break;
+                //highlightSelected();
+                break;
         }
 
         // Fade brightness on idle change
@@ -759,11 +760,15 @@ void mainmenu() {
 }
 
 static unsigned long remapMillis;
+static unsigned long enterMillis;
 void serialCheck() {
-    // Check for serial connection every 5s
-    if ((millis() - remapMillis) > 5000){
+    // Check for serial connection every 1s
+    if ((millis() - remapMillis) > 1000){
         // Push greeting
-        printBlock(0);
+        if ((millis() - enterMillis) > 5000){
+            printBlock(0);
+            enterMillis = millis();
+        }
 
         // Check incoming character if exists
         if (Serial.available() > 0) {

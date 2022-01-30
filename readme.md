@@ -4,7 +4,6 @@ This firmware is currently being used for my newer 2022 model keypads.
 
 ### Features
 
-- [x] Uses FastLED instead of slower NeoPixel and DotStar libraries (also allows for easier programming of color changes.)
 - [ ] Support input methods:
     - [x] direct (key to pin mapping)
     - [ ] matrix
@@ -16,7 +15,7 @@ This firmware is currently being used for my newer 2022 model keypads.
 - [ ] Multi-key mapping (ie. mapping key 1 to ctrl+alt+delete.)
     - This will use a lot of EEPROM space, and also creates a bit of confusion. F13-F24 + AutoHotKey may be the better way to go, but I'd like to keep this implemented for those that already use it.
 - [x] Mouse button support for M1-M5 keys
-- [x] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
+- [ ] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
 - [ ] Allow changing touch sensitivity in the configurator.
 - [ ] Add max values for incoming data through serial monitor
 

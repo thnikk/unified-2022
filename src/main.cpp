@@ -3,11 +3,13 @@
 #include <Bounce2.h>
 #include <HID-Project.h>
 #include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
 CRGBArray<numleds> leds;
+Adafruit_NeoPixel pixels(numleds, neopin, NEO_GRB + NEO_KHZ800);
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -91,10 +93,10 @@ void setup() {
     Serial.begin(9600);
 
     // Initialize LEDs
-    FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
+    pixels.begin();
 
     // Set brightness
-    FastLED.setBrightness(255);
+    pixels.setBrightness(255);
 
     // Initialize EEPROM
     if (!EEPROM.isValid()) eepromUpdate();
@@ -266,12 +268,13 @@ void wheel(){
         if (pressed[i]) leds[i] = CHSV(hue+(i*20),255,255);
         else leds[i] = 0xFFFFFF;
     }
-#if defined (ADAFRUIT_TRINKET_M0)
-    if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
-    else ds[0] = 0xFFFFFF;
+#if defined (TOUCH)
+    if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
+    else leds[0] = 0xFFFFFFFF;
 #endif
     hue--;
-    FastLED.show();
+    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
+    pixels.show();
 }
 
 // Highlight the key being remapped.
@@ -282,10 +285,11 @@ void highlightSelected(){
         leds[i] = CHSV(hue,255,255);
         if (i == selected) leds[i] = 0xFFFFFF;
     }
-#if defined (ADAFRUIT_TRINKET_M0)
-    if (anyPressed == 0) ds[0] = CHSV(hue,255,255);
+#if defined (TOUCH)
+    if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
 #endif
-    FastLED.show();
+    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
+    pixels.show();
 }
 
 // Fade from white to rainbow to off
@@ -306,7 +310,7 @@ void rbFade(){
         }
         leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
     }
-#if defined (ADAFRUIT_TRINKET_M0)
+#if defined (TOUCH)
     static int satDS;
     static int valDS;
     if (anyPressed) {
@@ -316,11 +320,12 @@ void rbFade(){
         if (valDS < 0) valDS = 0; // Same for val
     }
     else { satDS=0; valDS=255; }
-    ds[0] = CHSV(hue,satDS,valDS);
+    leds[0] = CHSV(hue,satDS,valDS);
 #endif
     hue-=8;
     if (hue < 0) hue = 255;
-    FastLED.show();
+    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
+    pixels.show();
 }
 
 // Custom colors
@@ -331,12 +336,13 @@ void custom(){
         if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
         else leds[i] = 0xFFFFFF;
     }
-#if defined (ADAFRUIT_TRINKET_M0)
+#if defined (TOUCH)
     // Set DotStar to left key color
-    if (anyPressed == 0) ds[0] = CHSV(custColor[0],255,255);
-    else ds[0] = 0xFFFFFF;
+    if (anyPressed == 0) leds[0] = CHSV(custColor[0],255,255);
+    else leds[0] = 0xFFFFFF;
 #endif
-    FastLED.show();
+    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
+    pixels.show();
 }
 
 static unsigned long avgMillis;
@@ -360,11 +366,12 @@ void bps(){
         if (pressed[i]) leds[i] = CHSV(lastColor+100,255,255);
         else leds[i] = 0xFFFFFF;
     }
-#if defined (ADAFRUIT_TRINKET_M0)
-    if (anyPressed == 0) ds[0] = CHSV(lastColor+100,255,255);
-    else ds[0] = 0xFFFFFF;
+#if defined (TOUCH)
+    if (anyPressed == 0) leds[0] = CHSV(lastColor+100,255,255);
+    else leds[0] = 0xFFFFFF;
 #endif
-    FastLED.show();
+    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
+    pixels.show();
 
 }
 
@@ -391,7 +398,7 @@ void effects(uint8_t speed, uint8_t MODE) {
         if (b > bMax) b--;
 
         // Set brightness and global effect speed
-        FastLED.setBrightness(b);
+        pixels.setBrightness(b);
         effectMillis = millis();
     }
 }

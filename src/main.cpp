@@ -456,9 +456,10 @@ void menu(){
     Serial.println(F("3 to set the brightness"));
     Serial.println(F("4 to set the custom colors"));
     Serial.println(F("5 to set the idle timeout"));
-    Serial.println(F("6 to set the bounce interval"));
 #ifdef TOUCH
-    Serial.println(F("7 to set the touch threshold"));
+    Serial.println(F("6 to set the touch threshold"));
+#else
+    Serial.println(F("6 to set the debounce interval"));
 #endif
 }
 void LEDmodes(){
@@ -801,16 +802,19 @@ void mainmenu() {
                     idleMinutes = brightMenu();
                     printBlock(1);
                     break;
+#ifdef TOUCH
+                case(6):
+                    thresholdMenu();
+                    printBlock(1);
+                    break;
+#else
                 case(6):
                     debounceExp();
                     debounceInterval = brightMenu();
                     for (uint8_t x=0; x<numkeys; x++) bounce[x].interval(debounceInterval);
                     printBlock(1);
                     break;
-                case(7):
-                    thresholdMenu();
-                    printBlock(1);
-                    break;
+#endif
                 default:
                     Serial.println(F("Please enter a valid value."));
                     break;

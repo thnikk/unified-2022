@@ -16,7 +16,7 @@ This firmware is currently being used for my newer 2022 model keypads.
     - This will use a lot of EEPROM space, and also creates a bit of confusion. F13-F24 + AutoHotKey may be the better way to go, but I'd like to keep this implemented for those that already use it.
 - [x] Mouse button support for M1-M5 keys
 - [ ] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
-- [ ] Allow changing touch sensitivity in the configurator.
+- [x] Allow changing touch sensitivity in the configurator.
 - [ ] Add max values for incoming data through serial monitor
 
 # Omissions

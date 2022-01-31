@@ -35,7 +35,7 @@ static uint8_t custColor[] = {224,192,224,192,224,192,224};
 static uint8_t bpsCount;
 
 // FreeTouch
-static int threshold[] = { 700, 700, 600, 400 };
+static uint8_t threshold[] = { 175, 175, 150, 100 };
 
 // Default idle time
 static byte idleMinutes = 5;
@@ -63,6 +63,7 @@ static bool anyPressed = 0;
 const byte colAddr = 20;
 // Start mapping after colors in EEPROM
 const byte mapAddr = colAddr+numkeys;
+const byte threshAddr = colAddr+numkeys+numkeys;
 
 void eepromLoad(){
     bMax = EEPROM.read(1);
@@ -72,6 +73,7 @@ void eepromLoad(){
     for (uint8_t x=0;x<numkeys;x++) {
         custColor[x] = EEPROM.read(colAddr+x);
         mapping[x] = EEPROM.read(mapAddr+x);
+        threshold[x] = EEPROM.read(threshAddr+x);
     }
 }
 
@@ -84,6 +86,7 @@ void eepromUpdate(){
     for (uint8_t x=0; x<numkeys; x++) {
         if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
         if (mapping[x] != EEPROM.read(mapAddr+x)) EEPROM.write(mapAddr+x, mapping[x]);
+        if (threshold[x] != EEPROM.read(threshAddr+x)) EEPROM.write(threshAddr+x, threshold[x]);
     }
     EEPROM.commit();
 }
@@ -127,25 +130,30 @@ void setup() {
     Mouse.begin();
 }
 
+unsigned long touchMillis;
+
 void checkKeys() {
     anyPressed = 0;
 #if defined (TOUCH)
-    int touchValue = qt_1.measure();
-    if (touchValue > threshold[0]) pressed[0] = 0;
-    else if ( touchValue < threshold[0] - 50 ) pressed[0] = 1;
-    touchValue = qt_2.measure();
-    if (touchValue > threshold[1]) pressed[1] = 0;
-    else if ( touchValue < threshold[1] - 50 ) pressed[1] = 1;
-    #if numkeys >= 3
-        touchValue = qt_3.measure();
-        if (touchValue > threshold[2]) pressed[2] = 0;
-        else if ( touchValue < threshold[2] - 50 ) pressed[2] = 1;
-    #endif
-    #if numkeys >= 4
-        touchValue = qt_4.measure();
-        if (touchValue > threshold[3]) pressed[3] = 0;
-        else if ( touchValue < threshold[3] - 50 ) pressed[3] = 1;
-    #endif
+    if ((millis() - touchMillis) > 0) {
+        int touchValue = qt_1.measure()/4;
+        if (touchValue > threshold[0]) pressed[0] = 0;
+        else if ( touchValue < threshold[0] - 12 ) pressed[0] = 1;
+        touchValue = qt_2.measure()/4;
+        if (touchValue > threshold[1]) pressed[1] = 0;
+        else if ( touchValue < threshold[1] - 12 ) pressed[1] = 1;
+        #if numkeys >= 3
+            touchValue = qt_3.measure()/4;
+            if (touchValue > threshold[2]) pressed[2] = 0;
+            else if ( touchValue < threshold[2] - 12 ) pressed[2] = 1;
+        #endif
+        #if numkeys >= 4
+            touchValue = qt_4.measure()/4;
+            if (touchValue > threshold[3]) pressed[3] = 0;
+            else if ( touchValue < threshold[3] - 12 ) pressed[3] = 1;
+        #endif
+        touchMillis = millis();
+    }
 #else
 // Regular models can just iterate with a for loop.
     for(uint8_t x=0; x<numkeys; x++){
@@ -409,12 +417,27 @@ static int count;
 void serialDebug() {
     count++;
     if ((millis() - serialDebugMillis) > 1000){
+        // Print brightness and EEPROM brightness
         Serial.print("Brightness: "); Serial.print(b); Serial.print(" / "); Serial.println(EEPROM.read(1));
+        // Print EEPROM LED mode
         Serial.print("LED mode: "); Serial.println(EEPROM.read(2));
+        // Print EEPROM idle timeout
         Serial.print("Idle timeout: "); Serial.println(EEPROM.read(3));
+        // Print loops per second
         Serial.print("LPS: ");Serial.println(count);
+        // Print seconds since last keypress (idle debugging)
         Serial.print("Seconds since last keypress: ");Serial.println((millis() - pm)/1000);
+        // Print idle minutes var
         Serial.print("Idle minutes: ");Serial.println(idleMinutes);
+
+        // Print current threshold values
+        Serial.print("Touch threshold: ");
+        for (uint8_t x=0; x<numkeys; x++) {
+            Serial.print(threshold[x]);
+            if (x<numkeys-1) Serial.print(", ");
+            else Serial.println();
+        }
+
         count = 0;
         serialDebugMillis = millis();
     }
@@ -434,6 +457,9 @@ void menu(){
     Serial.println(F("4 to set the custom colors"));
     Serial.println(F("5 to set the idle timeout"));
     Serial.println(F("6 to set the bounce interval"));
+#ifdef TOUCH
+    Serial.println(F("7 to set the touch threshold"));
+#endif
 }
 void LEDmodes(){
     Serial.println(F("Select an LED mode. Enter:"));
@@ -447,6 +473,11 @@ void custExp(){
     Serial.println(F("Colors are expressed as a 0-255 value, where:"));
     Serial.println(F("red=0, orange=32, yellow=64, green=96"));
     Serial.println(F("aqua=128, blue=160, purple=192, and pink=224"));
+    Serial.print(F("Current values: "));
+    for (uint8_t x=0;x<numleds;x++) {
+        Serial.print(custColor[x]);
+        if (x != numleds-1) Serial.print(", ");
+    }
 }
 void remapExp(){
     Serial.println(F("If you're trying to map a key that doesn't print a character,"));
@@ -467,6 +498,15 @@ void debounceExp(){
     Serial.println(F("Enter a debounce value between 0 and 255."));
     Serial.print(F("Current value: "));
     Serial.print(debounceInterval);
+}
+void thresholdExp(){
+    Serial.println(F("Enter a threshold value for each pad between 0 and 255."));
+    Serial.print(F("Current values: "));
+    for (uint8_t x=0; x<numkeys; x++) {
+        Serial.print(threshold[x]);
+        if (x<numkeys-1) Serial.print(", ");
+        else Serial.println();
+    }
 }
 
 void keyTable() {
@@ -535,11 +575,6 @@ void printBlock(uint8_t block) {
             break;
         case 4: // Custom colors
             custExp();
-            Serial.print(F("Current values: "));
-            for (uint8_t x=0;x<numleds;x++) {
-                Serial.print(custColor[x]);
-                if (x != numleds-1) Serial.print(", ");
-            }
             break;
         case 5: // Remapper
             // Print key names and numbers
@@ -550,6 +585,9 @@ void printBlock(uint8_t block) {
             break;
         case 6: // Brightness
             debounceExp();
+            break;
+        case 7: // Brightness
+            thresholdExp();
             break;
     }
     // Add extra line break
@@ -686,6 +724,24 @@ void customMenu(){
     }
 }
 
+
+// Menu for changing colors on custom mode
+void thresholdMenu(){
+    printBlock(7);
+    while(true){
+        for(uint8_t x=0;x<numleds;x++){
+            Serial.print(F("Threshold for key "));
+            Serial.print(x+1);
+            Serial.print(": ");
+            uint8_t new_thresh = parseByte();
+            Serial.println(new_thresh);
+            threshold[x] = new_thresh;
+        }
+        Serial.println();
+        return;
+    }
+}
+
 // Menu for remapping
 void remapMenu(){
 
@@ -749,6 +805,10 @@ void mainmenu() {
                     debounceExp();
                     debounceInterval = brightMenu();
                     for (uint8_t x=0; x<numkeys; x++) bounce[x].interval(debounceInterval);
+                    printBlock(1);
+                    break;
+                case(7):
+                    thresholdMenu();
                     printBlock(1);
                     break;
                 default:

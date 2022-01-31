@@ -35,7 +35,7 @@ static uint8_t custColor[] = {224,192,224,192,224,192,224};
 static uint8_t bpsCount;
 
 // FreeTouch
-static uint8_t threshold[] = { 175, 175, 150, 100 };
+static uint8_t threshold[] = { 175, 175, 150, 100, 0 };
 
 // Default idle time
 static byte idleMinutes = 5;
@@ -431,7 +431,7 @@ void serialDebug() {
         Serial.print("Idle minutes: ");Serial.println(idleMinutes);
 
         // Print current threshold values
-        Serial.print("Touch threshold: ");
+        Serial.print("Touch sensitivity: ");
         for (uint8_t x=0; x<numkeys; x++) {
             Serial.print(threshold[x]);
             if (x<numkeys-1) Serial.print(", ");
@@ -457,7 +457,7 @@ void menu(){
     Serial.println(F("4 to set the custom colors"));
     Serial.println(F("5 to set the idle timeout"));
 #ifdef TOUCH
-    Serial.println(F("6 to set the touch threshold"));
+    Serial.println(F("6 to set the touch sensitivity"));
 #else
     Serial.println(F("6 to set the debounce interval"));
 #endif
@@ -501,7 +501,7 @@ void debounceExp(){
     Serial.print(debounceInterval);
 }
 void thresholdExp(){
-    Serial.println(F("Enter a threshold value for each pad between 0 and 255."));
+    Serial.println(F("Enter a sensitivity value for each pad between 0 and 255 (higher is less sensitive.)"));
     Serial.print(F("Current values: "));
     for (uint8_t x=0; x<numkeys; x++) {
         Serial.print(threshold[x]);
@@ -731,7 +731,7 @@ void thresholdMenu(){
     printBlock(7);
     while(true){
         for(uint8_t x=0;x<numkeys;x++){
-            Serial.print(F("Threshold for key "));
+            Serial.print(F("Sensitivity for key "));
             Serial.print(x+1);
             Serial.print(": ");
             uint8_t new_thresh = parseByte();

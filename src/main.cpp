@@ -730,7 +730,7 @@ void customMenu(){
 void thresholdMenu(){
     printBlock(7);
     while(true){
-        for(uint8_t x=0;x<numleds;x++){
+        for(uint8_t x=0;x<numkeys;x++){
             Serial.print(F("Threshold for key "));
             Serial.print(x+1);
             Serial.print(": ");

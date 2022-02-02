@@ -2,6 +2,7 @@
 lib/
 firmware/
 uploader/
+releases/
 .travis.yml
 *.zip
 copy_bin.sh

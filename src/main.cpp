@@ -22,7 +22,7 @@ static uint8_t b = 127;
 static uint8_t bMax = b;
 
 // Default LED mode and speed of effects
-static uint8_t ledMode = 0;
+static uint8_t ledMode = 3;
 static uint8_t effectSpeed = 10;
 
 static uint8_t debounceInterval = 4;
@@ -354,28 +354,37 @@ void custom(){
 }
 
 static unsigned long avgMillis;
-static uint8_t bpsColor;
-static uint8_t lastColor;
+static uint16_t bpsColor;
+static uint16_t lastColor;
+int incValue;
 void bps(){
     // Update values once per second
     if ((millis() - avgMillis) > 1000) {
         lastColor = bpsColor;
-        if (bpsCount > 25) bpsCount = 25; // Max count value
-        if (bpsCount < 1) bpsCount = 1; // Prevents color jump
         bpsColor = (bpsCount*10);
         bpsCount = 0;
         avgMillis = millis();
     }
 
-    if (lastColor > bpsColor) lastColor--;
-    if (lastColor < bpsColor) lastColor++;
+    uint8_t bpsSpeed = 3;
+    // Inc/dec values to smooth transition
+    if (lastColor > bpsColor) {
+        lastColor-=bpsSpeed;
+        if (lastColor - bpsColor < bpsSpeed) lastColor=bpsColor;
+    }
+    if (lastColor < bpsColor){
+        lastColor+=bpsSpeed;
+        if (bpsColor - lastColor < bpsSpeed) lastColor=bpsColor;
+    }
 
-    for(int i = 0; i < numkeys; i++) {
-        if (pressed[i]) leds[i] = CHSV(lastColor+100,255,255);
+    uint8_t finalColor = lastColor%256;
+
+    for(int i = 0; i < numleds; i++) {
+        if (pressed[i]) leds[i] = CHSV(finalColor+100,255,255);
         else leds[i] = 0xFFFFFF;
     }
 #if defined (TOUCH)
-    if (anyPressed == 0) leds[0] = CHSV(lastColor+100,255,255);
+    if (anyPressed == 0) leds[0] = CHSV(finalColor+100,255,255);
     else leds[0] = 0xFFFFFF;
 #endif
     for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));

@@ -22,7 +22,7 @@ static uint8_t b = 127;
 static uint8_t bMax = b;
 
 // Default LED mode and speed of effects
-static uint8_t ledMode = 3;
+static uint8_t ledMode = 0;
 static uint8_t effectSpeed = 10;
 
 static uint8_t debounceInterval = 4;

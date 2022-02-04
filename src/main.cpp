@@ -131,26 +131,27 @@ void setup() {
 }
 
 unsigned long touchMillis;
+uint8_t tv[numkeys];
 
 void checkKeys() {
     anyPressed = 0;
 #if defined (TOUCH)
     if ((millis() - touchMillis) > 0) {
-        int touchValue = qt_1.measure()/4;
-        if (touchValue > threshold[0]) pressed[0] = 0;
-        else if ( touchValue < threshold[0] - 12 ) pressed[0] = 1;
-        touchValue = qt_2.measure()/4;
-        if (touchValue > threshold[1]) pressed[1] = 0;
-        else if ( touchValue < threshold[1] - 12 ) pressed[1] = 1;
+        tv[0] = qt_1.measure()/4;
+        if (tv[0] > threshold[0]) pressed[0] = 0;
+        else if ( tv[0] < threshold[0] - 12 ) pressed[0] = 1;
+        tv[1] = qt_2.measure()/4;
+        if (tv[1] > threshold[1]) pressed[1] = 0;
+        else if ( tv[1] < threshold[1] - 12 ) pressed[1] = 1;
         #if numkeys >= 3
-            touchValue = qt_3.measure()/4;
-            if (touchValue > threshold[2]) pressed[2] = 0;
-            else if ( touchValue < threshold[2] - 12 ) pressed[2] = 1;
+            tv[2] = qt_3.measure()/4;
+            if (tv[2] > threshold[2]) pressed[2] = 0;
+            else if ( tv[2] < threshold[2] - 12 ) pressed[2] = 1;
         #endif
         #if numkeys >= 4
-            touchValue = qt_4.measure()/4;
-            if (touchValue > threshold[3]) pressed[3] = 0;
-            else if ( touchValue < threshold[3] - 12 ) pressed[3] = 1;
+            tv[3] = qt_4.measure()/4;
+            if (tv[3] > threshold[3]) pressed[3] = 0;
+            else if ( tv[3] < threshold[3] - 12 ) pressed[3] = 1;
         #endif
         touchMillis = millis();
     }
@@ -467,6 +468,7 @@ void menu(){
     Serial.println(F("5 to set the idle timeout"));
 #ifdef TOUCH
     Serial.println(F("6 to set the touch sensitivity"));
+    Serial.println(F("7 to auto-calibrate touch sensitivity"));
 #else
     Serial.println(F("6 to set the debounce interval"));
 #endif
@@ -772,6 +774,36 @@ void remapMenu(){
     Serial.println();
 }
 
+#ifdef TOUCH
+void touch_calibrate() {
+    Serial.println("Your touch pads will now be auto-calibrated.");
+    Serial.println("Please press each pad in order with as much force");
+    Serial.println("as you would like for them to be actuated with,");
+    Serial.println("and wait for confirmation between pads.");
+    static uint8_t mv[numkeys];
+    for (uint8_t x=0; x<numkeys; x++) {
+        static uint8_t init_value = tv[x];
+        // If the touch value hasn't increased by 10
+        while (tv[x] - init_value <= 5) {
+            checkKeys(); // Update values or we'll get stuck forever
+            delay(1); // Speed limit with delay, only check once per ms
+        }
+        // If the touch value has increased by 9
+        while (tv[x] - init_value > 4) {
+            checkKeys(); // Update values
+            if (tv[x] > mv[x]) mv[x] = tv[x]; // Update max value if touch value is higher
+            delay(1); // Speed limit with delay, only check once per ms
+        }
+        Serial.print("Value for pad ");
+        Serial.print(x+1);
+        Serial.print(": ");
+        threshold[x] = ((mv[x] - init_value)/2) + init_value;
+        Serial.println(threshold[x]);
+    }
+    Serial.println();
+}
+#endif
+
 // Main menu
 void mainmenu() {
     printBlock(1);
@@ -814,6 +846,10 @@ void mainmenu() {
 #ifdef TOUCH
                 case(6):
                     thresholdMenu();
+                    printBlock(1);
+                    break;
+                case(7):
+                    touch_calibrate();
                     printBlock(1);
                     break;
 #else

@@ -13,10 +13,13 @@ This firmware is currently being used for my newer 2022 model keypads.
 - [x] Uses serial communication for all configuration.
 - [x] Idle mode with configurable timeout
 - [ ] Multi-key mapping (ie. mapping key 1 to ctrl+alt+delete.)
-    - This will use a lot of EEPROM space, and also creates a bit of confusion. F13-F24 + AutoHotKey may be the better way to go, but I'd like to keep this implemented for those that already use it.
+    - This will use a lot of flash space, and also creates a bit of confusion. F13-F24 + AutoHotKey may be the better way to go, but I'd like to keep this implemented for those that already use it.
+    - Remove xx from previous firmware versions and instead take all 3 keys at once.
+    - Maybe use an alias for modifiers like autohotkey with `^*!#`.
 - [x] Mouse button support for M1-M5 keys
 - [ ] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
 - [x] Allow changing touch sensitivity in the configurator.
+- [x] Have menu option for auto-callibration.
 - [ ] Add max values for incoming data through serial monitor
 
 # Omissions

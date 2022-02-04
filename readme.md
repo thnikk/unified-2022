@@ -19,7 +19,7 @@ This firmware is currently being used for my newer 2022 model keypads.
 - [x] Mouse button support for M1-M5 keys
 - [ ] LEDs will change color while remapping to reflect the current key being remapped and the current profile.
 - [x] Allow changing touch sensitivity in the configurator.
-- [x] Have menu option for auto-callibration.
+- [x] Have menu option for auto-calibration.
 - [ ] Add max values for incoming data through serial monitor
 
 # Omissions

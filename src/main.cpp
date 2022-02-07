@@ -3,13 +3,11 @@
 #include <Bounce2.h>
 #include <HID-Project.h>
 #include <FastLED.h>
-#include <Adafruit_NeoPixel.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
 CRGBArray<numkeys> leds;
-Adafruit_NeoPixel pixels(numleds, neopin, NEO_GRB + NEO_KHZ800);
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -96,10 +94,10 @@ void setup() {
     Serial.begin(9600);
 
     // Initialize LEDs
-    pixels.begin();
+    FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
 
     // Set brightness
-    pixels.setBrightness(255);
+    FastLED.setBrightness(255);
 
     // Initialize EEPROM
     if (!EEPROM.isValid()) eepromUpdate();
@@ -282,8 +280,7 @@ void wheel(){
     else leds[0] = 0xFFFFFFFF;
 #endif
     hue--;
-    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
-    pixels.show();
+    FastLED.show();
 }
 
 // Highlight the key being remapped.
@@ -297,8 +294,7 @@ void highlightSelected(){
 #if defined (TOUCH)
     if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
 #endif
-    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
-    pixels.show();
+    FastLED.show();
 }
 
 // Fade from white to rainbow to off
@@ -333,8 +329,7 @@ void rbFade(){
 #endif
     hue-=8;
     if (hue < 0) hue = 255;
-    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
-    pixels.show();
+    FastLED.show();
 }
 
 // Custom colors
@@ -350,8 +345,7 @@ void custom(){
     if (anyPressed == 0) leds[0] = CHSV(custColor[0],255,255);
     else leds[0] = 0xFFFFFF;
 #endif
-    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
-    pixels.show();
+    FastLED.show();
 }
 
 static unsigned long avgMillis;
@@ -388,8 +382,7 @@ void bps(){
     if (anyPressed == 0) leds[0] = CHSV(finalColor+100,255,255);
     else leds[0] = 0xFFFFFF;
 #endif
-    for (uint8_t x=0;x<numleds;x++) pixels.setPixelColor(x, pixels.Color(leds[x].red,leds[x].green,leds[x].blue));
-    pixels.show();
+    FastLED.show();
 
 }
 
@@ -417,7 +410,7 @@ void effects(uint8_t speed, uint8_t MODE) {
         if (b > bMax) b--;
 
         // Set brightness and global effect speed
-        pixels.setBrightness(b);
+        FastLED.setBrightness(b);
         effectMillis = millis();
     }
 }

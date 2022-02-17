@@ -122,6 +122,9 @@ void setup() {
         bounce[x].attach(pins[x]);
         bounce[x].interval(4);
     }
+    pinMode(11, INPUT_PULLUP);
+    pinMode(12, INPUT_PULLUP);
+    pinMode(13, INPUT_PULLUP);
 #endif
 
     NKROKeyboard.begin();

@@ -32,9 +32,6 @@ static uint8_t custColor[] = {224,192,224,192,224,192,224};
 // BPS
 static uint8_t bpsCount;
 
-// FreeTouch
-static uint8_t threshold[] = { 175, 175, 150, 100, 0 };
-
 // Default idle time
 static byte idleMinutes = 5;
 
@@ -120,7 +117,7 @@ void setup() {
     for (uint8_t x=0; x<numkeys; x++) {
         pinMode(pins[x], INPUT_PULLUP);
         bounce[x].attach(pins[x]);
-        bounce[x].interval(4);
+        bounce[x].interval(debounceInterval);
     }
     pinMode(11, INPUT_PULLUP);
     pinMode(12, INPUT_PULLUP);

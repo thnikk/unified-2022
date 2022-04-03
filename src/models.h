@@ -7,13 +7,6 @@
 #include <Adafruit_FreeTouch.h>
 #endif
 
-#ifdef TOUCH
-Adafruit_FreeTouch qt_1 = Adafruit_FreeTouch(A0, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
-Adafruit_FreeTouch qt_2 = Adafruit_FreeTouch(A1, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
-Adafruit_FreeTouch qt_3 = Adafruit_FreeTouch(A2, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
-Adafruit_FreeTouch qt_4 = Adafruit_FreeTouch(A3, OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
-#endif
-
 //// Mapping nicknames
 // These are only used by the compiler so keys can have nicknames during assignment
 #define SK_LEFT  173
@@ -52,18 +45,36 @@ Adafruit_FreeTouch qt_4 = Adafruit_FreeTouch(A3, OVERSAMPLE_8, RESISTOR_50K, FRE
 #define SK_MB5   199
 
 #ifdef TOUCH
-    const uint8_t pins[] = { A0, A1, A2, A3 };
-    #if numkeys == 3
-    uint8_t mapping[] = {SK_Z, SK_X, SK_ESC};
-    #elif numkeys == 4
-    uint8_t mapping[] = {SK_Z, SK_X, SK_ESC, SK_BKTK};
+    #if defined ALTPINS
+        const uint8_t pins[] = { 7, 6, 0, 1 };
+        static uint8_t threshold[] = { 120, 120, 200, 150 };
+        #warning Using alt pin mapping
+    #else
+        const uint8_t pins[] = { A0, A1, A2, A3 };
+        #if numkeys == 2
+            static uint8_t threshold[] = { 200, 175 };
+        #elif numkeys == 4
+            static uint8_t threshold[] = { 175, 175, 150, 100 };
+        #endif
     #endif
+    uint8_t mapping[] = {SK_Z, SK_X, SK_ESC, SK_BKTK};
 #else
+    uint8_t threshold[numkeys];
     #if numkeys == 3
     const uint8_t pins[] = { 2, 3, 1 };
     uint8_t mapping[] = {SK_Z, SK_X, SK_ESC};
     #elif numkeys == 5
     const uint8_t pins[] = { 2, 3, 8, 7, 1 };
     uint8_t mapping[] = {SK_Z, SK_X, SK_C, SK_V, SK_ESC};
+    #elif numkeys == 9
+    const uint8_t pins[] = { 1, 2, 3, 10, 9, 8, 6, 5, 7};
+    uint8_t mapping[] = {SK_S, SK_D, SK_F, SK_J, SK_K, SK_L, SK_SP, SK_ESC, SK_BKTK};
     #endif
+#endif
+
+#ifdef TOUCH
+Adafruit_FreeTouch qt_1 = Adafruit_FreeTouch(pins[0], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch qt_2 = Adafruit_FreeTouch(pins[1], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch qt_3 = Adafruit_FreeTouch(pins[2], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch qt_4 = Adafruit_FreeTouch(pins[3], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
 #endif

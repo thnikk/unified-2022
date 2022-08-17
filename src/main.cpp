@@ -87,6 +87,11 @@ void eepromUpdate(){
 }
 
 void setup() {
+    // Fix QTPY neopixel
+    #ifdef QTPY
+    PORT->Group[0].PINCFG[15].bit.DRVSTR = 1;
+    #endif
+
     // Set the serial baudrate
     Serial.begin(9600);
 

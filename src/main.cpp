@@ -3,16 +3,11 @@
 #include <Bounce2.h>
 #include <HID-Project.h>
 #include <Adafruit_NeoPixel.h>
-#include <Adafruit_DotStar.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
-#if numleds > 1
-Adafruit_NeoPixel pixels(numleds, neopin, NEO_GRB + NEO_KHZ800); 
-#else
-Adafruit_DotStar pixels( 1, 7, 8, DOTSTAR_BRG);
-#endif
+Adafruit_NeoPixel pixels(numleds, neopin); 
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -91,6 +86,10 @@ void eepromUpdate(){
 }
 
 void setup() {
+    #ifdef QTPY
+    PORT->Group[0].PINCFG[15].bit.DRVSTR = 1;  // turn up neopixel power
+    #endif
+
     // Set the serial baudrate
     Serial.begin(9600);
 
@@ -275,11 +274,12 @@ uint32_t hsv_mult = 256;
 // Cycle through rainbow
 void wheel(){
     static uint8_t hue;
+#ifndef TOUCH
     for(uint8_t i = 0; i < numleds; i++) {
         if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*hsv_mult, 255, b));
         else pixels.setPixelColor(i, pixels.Color(255, 255, b));
     }
-#if defined (TOUCH)
+#else
     if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
     else pixels.setPixelColor(0, pixels.Color(255, 255, b));
 #endif

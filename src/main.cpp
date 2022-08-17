@@ -2,12 +2,14 @@
 #include <Arduino.h>
 #include <Bounce2.h>
 #include <HID-Project.h>
-#include <FastLED.h>
+//#include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
-CRGBArray<numkeys> leds;
+//CRGBArray<numkeys> leds;
+Adafruit_NeoPixel pixels(numleds, neopin, NEO_GRB + NEO_KHZ800); 
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -91,10 +93,12 @@ void setup() {
     Serial.begin(9600);
 
     // Initialize LEDs
-    FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
+    //FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
+    pixels.begin();
+    pixels.show();
 
     // Set brightness
-    FastLED.setBrightness(255);
+    //FastLED.setBrightness(255);
 
     // Initialize EEPROM
     if (!EEPROM.isValid()) eepromUpdate();
@@ -272,15 +276,18 @@ void keyboard() {
 void wheel(){
     static uint8_t hue;
     for(uint8_t i = 0; i < numleds; i++) {
-        if (pressed[i]) leds[i] = CHSV(hue+(i*20),255,255);
-        else leds[i] = 0xFFFFFF;
+        //if (pressed[i]) leds[i] = CHSV(hue+(i*20),255,255);
+        //else leds[i] = 0xFFFFFF;
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*256, 255, 255));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, 255));
     }
 #if defined (TOUCH)
-    if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
-    else leds[0] = 0xFFFFFFFF;
+    //if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
+    //else leds[0] = 0xFFFFFFFF;
 #endif
     hue--;
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 }
 
 // Highlight the key being remapped.
@@ -288,13 +295,14 @@ static uint8_t selected;
 void highlightSelected(){
     uint8_t hue = (255/numkeys);
     for(uint8_t i = 0; i < numkeys; i++) {
-        leds[i] = CHSV(hue,255,255);
-        if (i == selected) leds[i] = 0xFFFFFF;
+        //leds[i] = CHSV(hue,255,255);
+        //if (i == selected) leds[i] = 0xFFFFFF;
     }
-#if defined (TOUCH)
+#if numleds == 1
     if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
 #endif
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 }
 
 // Fade from white to rainbow to off
@@ -313,9 +321,9 @@ void rbFade(){
             sat[i]=0;
             val[i]=255;
         }
-        leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
+        //leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
     }
-#if defined (TOUCH)
+#if numleds == 1
     static int satDS;
     static int valDS;
     if (anyPressed) {
@@ -325,11 +333,12 @@ void rbFade(){
         if (valDS < 0) valDS = 0; // Same for val
     }
     else { satDS=0; valDS=255; }
-    leds[0] = CHSV(hue,satDS,valDS);
+    //leds[0] = CHSV(hue,satDS,valDS);
 #endif
     hue-=8;
     if (hue < 0) hue = 255;
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 }
 
 // Custom colors
@@ -337,15 +346,16 @@ void custom(){
     // Iterate through keys
     for(int i = 0; i < numkeys; i++) {
         // adjust LED order for special keypads
-        if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
-        else leds[i] = 0xFFFFFF;
+        //if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
+        //else leds[i] = 0xFFFFFF;
     }
-#if defined (TOUCH)
+#if numleds == 1
     // Set DotStar to left key color
-    if (anyPressed == 0) leds[0] = CHSV(custColor[0],255,255);
-    else leds[0] = 0xFFFFFF;
+    //if (anyPressed == 0) leds[0] = CHSV(custColor[0],255,255);
+    //else leds[0] = 0xFFFFFF;
 #endif
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 }
 
 static unsigned long avgMillis;
@@ -375,14 +385,15 @@ void bps(){
     uint8_t finalColor = lastColor%256;
 
     for(int i = 0; i < numleds; i++) {
-        if (pressed[i]) leds[i] = CHSV(finalColor+100,255,255);
-        else leds[i] = 0xFFFFFF;
+        //if (pressed[i]) leds[i] = CHSV(finalColor+100,255,255);
+        //else leds[i] = 0xFFFFFF;
     }
-#if defined (TOUCH)
-    if (anyPressed == 0) leds[0] = CHSV(finalColor+100,255,255);
-    else leds[0] = 0xFFFFFF;
+#if numleds == 1
+    //if (anyPressed == 0) leds[0] = CHSV(finalColor+100,255,255);
+    //else leds[0] = 0xFFFFFF;
 #endif
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 
 }
 
@@ -410,7 +421,8 @@ void effects(uint8_t speed, uint8_t MODE) {
         if (b > bMax) b--;
 
         // Set brightness and global effect speed
-        FastLED.setBrightness(b);
+        //FastLED.setBrightness(b);
+        //pixels.setBrightness(b);
         effectMillis = millis();
     }
 }

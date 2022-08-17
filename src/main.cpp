@@ -2,14 +2,17 @@
 #include <Arduino.h>
 #include <Bounce2.h>
 #include <HID-Project.h>
-//#include <FastLED.h>
 #include <Adafruit_NeoPixel.h>
+#include <Adafruit_DotStar.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
-//CRGBArray<numkeys> leds;
+#if numleds > 1
 Adafruit_NeoPixel pixels(numleds, neopin, NEO_GRB + NEO_KHZ800); 
+#else
+Adafruit_DotStar pixels( 1, 7, 8, DOTSTAR_BRG);
+#endif
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -21,9 +24,8 @@ static bool lastPressed[numkeys];
 static uint8_t b = 127;
 static uint8_t bMax = b;
 
-// Default LED mode and speed of effects
+// Default LED mode
 static uint8_t ledMode = 0;
-static uint8_t effectSpeed = 10;
 
 static uint8_t debounceInterval = 4;
 
@@ -93,12 +95,8 @@ void setup() {
     Serial.begin(9600);
 
     // Initialize LEDs
-    //FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
     pixels.begin();
     pixels.show();
-
-    // Set brightness
-    //FastLED.setBrightness(255);
 
     // Initialize EEPROM
     if (!EEPROM.isValid()) eepromUpdate();
@@ -272,21 +270,20 @@ void keyboard() {
     }
 }
 
+uint32_t hsv_mult = 256;
+
 // Cycle through rainbow
 void wheel(){
     static uint8_t hue;
     for(uint8_t i = 0; i < numleds; i++) {
-        //if (pressed[i]) leds[i] = CHSV(hue+(i*20),255,255);
-        //else leds[i] = 0xFFFFFF;
-        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*256, 255, 255));
-        else pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*hsv_mult, 255, b));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, b));
     }
 #if defined (TOUCH)
-    //if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
-    //else leds[0] = 0xFFFFFFFF;
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
 #endif
     hue--;
-    //FastLED.show();
     pixels.show();
 }
 
@@ -295,13 +292,12 @@ static uint8_t selected;
 void highlightSelected(){
     uint8_t hue = (255/numkeys);
     for(uint8_t i = 0; i < numkeys; i++) {
-        //leds[i] = CHSV(hue,255,255);
-        //if (i == selected) leds[i] = 0xFFFFFF;
+        pixels.setPixelColor(i, pixels.ColorHSV(hue*hsv_mult, 255, b));
+        if (i == selected) pixels.setPixelColor(i, pixels.Color(255, 255, b)); 
     }
 #if numleds == 1
-    if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
 #endif
-    //FastLED.show();
     pixels.show();
 }
 
@@ -322,6 +318,7 @@ void rbFade(){
             val[i]=255;
         }
         //leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
+        pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*50))*hsv_mult, sat[i], val[i]));
     }
 #if numleds == 1
     static int satDS;
@@ -334,10 +331,10 @@ void rbFade(){
     }
     else { satDS=0; valDS=255; }
     //leds[0] = CHSV(hue,satDS,valDS);
+    pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, satDS, valDS));
 #endif
     hue-=8;
     if (hue < 0) hue = 255;
-    //FastLED.show();
     pixels.show();
 }
 
@@ -348,11 +345,12 @@ void custom(){
         // adjust LED order for special keypads
         //if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
         //else leds[i] = 0xFFFFFF;
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV(custColor[i]*hsv_mult, 255, b));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, 255));
     }
 #if numleds == 1
-    // Set DotStar to left key color
-    //if (anyPressed == 0) leds[0] = CHSV(custColor[0],255,255);
-    //else leds[0] = 0xFFFFFF;
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(custColor[0]*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, 255));
 #endif
     //FastLED.show();
     pixels.show();
@@ -385,12 +383,12 @@ void bps(){
     uint8_t finalColor = lastColor%256;
 
     for(int i = 0; i < numleds; i++) {
-        //if (pressed[i]) leds[i] = CHSV(finalColor+100,255,255);
-        //else leds[i] = 0xFFFFFF;
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((finalColor+100)*hsv_mult, 255, b));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, b));
     }
 #if numleds == 1
-    //if (anyPressed == 0) leds[0] = CHSV(finalColor+100,255,255);
-    //else leds[0] = 0xFFFFFF;
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV((finalColor+100)*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
 #endif
     //FastLED.show();
     pixels.show();
@@ -420,9 +418,6 @@ void effects(uint8_t speed, uint8_t MODE) {
         if (b < bMax) b++;
         if (b > bMax) b--;
 
-        // Set brightness and global effect speed
-        //FastLED.setBrightness(b);
-        //pixels.setBrightness(b);
         effectMillis = millis();
     }
 }

@@ -7,7 +7,10 @@
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
-Adafruit_NeoPixel pixels(numleds, neopin); 
+#ifndef LED_TYPE
+#define LED_TYPE NEO_GRB
+#endif
+Adafruit_NeoPixel pixels(numleds, neopin, LED_TYPE); 
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -22,7 +25,11 @@ static uint8_t bMax = b;
 // Default LED mode
 static uint8_t ledMode = 0;
 
+// Default debounce interval
 static uint8_t debounceInterval = 4;
+
+// Default reset value for touch pads
+static uint8_t resetValue = 12;
 
 // Colors for custom LED mode
 // These are the initial values stored before changed through the remapper
@@ -64,6 +71,7 @@ void eepromLoad(){
     ledMode = EEPROM.read(2);
     idleMinutes = EEPROM.read(3);
     debounceInterval = EEPROM.read(4);
+    resetValue = EEPROM.read(5);
     for (uint8_t x=0;x<numkeys;x++) {
         custColor[x] = EEPROM.read(colAddr+x);
         mapping[x] = EEPROM.read(mapAddr+x);
@@ -77,6 +85,7 @@ void eepromUpdate(){
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
     if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
     if (debounceInterval != EEPROM.read(4)) EEPROM.write(4, debounceInterval);
+    if (resetValue != EEPROM.read(5)) EEPROM.write(5, resetValue);
     for (uint8_t x=0; x<numkeys; x++) {
         if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
         if (mapping[x] != EEPROM.read(mapAddr+x)) EEPROM.write(mapAddr+x, mapping[x]);
@@ -86,8 +95,9 @@ void eepromUpdate(){
 }
 
 void setup() {
+    // Fix QTPY NeoPixel
     #ifdef QTPY
-    PORT->Group[0].PINCFG[15].bit.DRVSTR = 1;  // turn up neopixel power
+    PORT->Group[0].PINCFG[15].bit.DRVSTR = 1;
     #endif
 
     // Set the serial baudrate
@@ -103,16 +113,32 @@ void setup() {
 
 // Initialize touchpads
 #ifdef TOUCH
+    #if numkeys >= 1
     qt_1.begin();
+    #endif
+    #if numkeys >= 2
     qt_2.begin();
+    #endif
     #if numkeys >= 3
         qt_3.begin();
     #endif
     #if numkeys >= 4
         qt_4.begin();
     #endif
-        pinMode(12, OUTPUT);
-        digitalWrite(12, HIGH);
+    #if numkeys >= 5
+        qt_5.begin();
+    #endif
+    #if numkeys >= 6
+        qt_6.begin();
+    #endif
+    #ifdef XIAO
+    pinMode(11, INPUT_PULLUP);
+    pinMode(12, INPUT_PULLUP);
+    pinMode(13, INPUT_PULLUP);
+    #else
+    pinMode(12, OUTPUT);
+    digitalWrite(12, HIGH);
+    #endif
 #else
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
     for (uint8_t x=0; x<numkeys; x++) {
@@ -136,22 +162,28 @@ void checkKeys() {
     anyPressed = 0;
 #if defined (TOUCH)
     if ((millis() - touchMillis) > 0) {
+        #if numkeys >= 1
         tv[0] = qt_1.measure()/4;
-        if (tv[0] > threshold[0]) pressed[0] = 0;
-        else if ( tv[0] < threshold[0] - 12 ) pressed[0] = 1;
+        #endif
+        #if numkeys >= 2
         tv[1] = qt_2.measure()/4;
-        if (tv[1] > threshold[1]) pressed[1] = 0;
-        else if ( tv[1] < threshold[1] - 12 ) pressed[1] = 1;
+        #endif
         #if numkeys >= 3
             tv[2] = qt_3.measure()/4;
-            if (tv[2] > threshold[2]) pressed[2] = 0;
-            else if ( tv[2] < threshold[2] - 12 ) pressed[2] = 1;
         #endif
         #if numkeys >= 4
             tv[3] = qt_4.measure()/4;
-            if (tv[3] > threshold[3]) pressed[3] = 0;
-            else if ( tv[3] < threshold[3] - 12 ) pressed[3] = 1;
         #endif
+        #if numkeys >= 5
+            tv[4] = qt_5.measure()/4;
+        #endif
+        #if numkeys >= 6
+            tv[5] = qt_6.measure()/4;
+        #endif
+        for (uint8_t x=0; x<numkeys; x++) {
+            if (tv[x] > threshold[x]) pressed[x] = 0;
+            else if ( tv[x] < threshold[x] - resetValue ) pressed[x] = 1;
+        }
         touchMillis = millis();
     }
 #else
@@ -274,14 +306,14 @@ uint32_t hsv_mult = 256;
 // Cycle through rainbow
 void wheel(){
     static uint8_t hue;
-#ifndef TOUCH
+#if numleds == 1
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
+#else
     for(uint8_t i = 0; i < numleds; i++) {
         if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*hsv_mult, 255, b));
         else pixels.setPixelColor(i, pixels.Color(255, 255, b));
     }
-#else
-    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
-    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
 #endif
     hue--;
     pixels.show();
@@ -318,7 +350,7 @@ void rbFade(){
             val[i]=255;
         }
         //leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
-        pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*50))*hsv_mult, sat[i], val[i]));
+        pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*50))*hsv_mult, sat[i], val[i] * b / 255));
     }
 #if numleds == 1
     static int satDS;
@@ -331,7 +363,7 @@ void rbFade(){
     }
     else { satDS=0; valDS=255; }
     //leds[0] = CHSV(hue,satDS,valDS);
-    pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, satDS, valDS));
+    pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, satDS, valDS * b / 255));
 #endif
     hue-=8;
     if (hue < 0) hue = 255;
@@ -444,6 +476,14 @@ void serialDebug() {
         Serial.print("Touch sensitivity: ");
         for (uint8_t x=0; x<numkeys; x++) {
             Serial.print(threshold[x]);
+            if (x<numkeys-1) Serial.print(", ");
+            else Serial.println();
+        }
+
+        // Print touch values
+        Serial.print("Touch values: ");
+        for (uint8_t x=0; x<numkeys; x++) {
+            Serial.print(tv[x]);
             if (x<numkeys-1) Serial.print(", ");
             else Serial.println();
         }

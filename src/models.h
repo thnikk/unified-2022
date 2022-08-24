@@ -110,24 +110,5 @@
 #endif
 
 #ifdef TOUCH
-Adafruit_FreeTouch qt[] = {
-#if numkeys >= 1
-Adafruit_FreeTouch(pins[0], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
-#endif
-#if numkeys >= 2
-Adafruit_FreeTouch(pins[1], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
-#endif
-#if numkeys >= 3
-Adafruit_FreeTouch(pins[2], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
-#endif
-#if numkeys >= 4
-Adafruit_FreeTouch(pins[3], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
-#endif
-#if numkeys >= 5
-Adafruit_FreeTouch(pins[4], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
-#endif
-#if numkeys >= 6
-Adafruit_FreeTouch(pins[5], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
-#endif
-};
+Adafruit_FreeTouch qt[numkeys];
 #endif

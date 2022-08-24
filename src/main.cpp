@@ -113,7 +113,10 @@ void setup() {
 
 // Initialize touchpads
 #ifdef TOUCH
-    for (uint8_t x=0; x<numkeys; x++) qt[x].begin();
+    for (uint8_t x=0; x<numkeys; x++) {
+        qt[x] = Adafruit_FreeTouch(pins[x], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
+        qt[x].begin();
+    }
     #ifdef XIAO
     pinMode(11, INPUT_PULLUP);
     pinMode(12, INPUT_PULLUP);

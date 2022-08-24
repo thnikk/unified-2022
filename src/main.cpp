@@ -113,24 +113,7 @@ void setup() {
 
 // Initialize touchpads
 #ifdef TOUCH
-    #if numkeys >= 1
-    qt_1.begin();
-    #endif
-    #if numkeys >= 2
-    qt_2.begin();
-    #endif
-    #if numkeys >= 3
-        qt_3.begin();
-    #endif
-    #if numkeys >= 4
-        qt_4.begin();
-    #endif
-    #if numkeys >= 5
-        qt_5.begin();
-    #endif
-    #if numkeys >= 6
-        qt_6.begin();
-    #endif
+    for (uint8_t x=0; x<numkeys; x++) qt[x].begin();
     #ifdef XIAO
     pinMode(11, INPUT_PULLUP);
     pinMode(12, INPUT_PULLUP);
@@ -162,24 +145,7 @@ void checkKeys() {
     anyPressed = 0;
 #if defined (TOUCH)
     if ((millis() - touchMillis) > 0) {
-        #if numkeys >= 1
-        tv[0] = qt_1.measure()/4;
-        #endif
-        #if numkeys >= 2
-        tv[1] = qt_2.measure()/4;
-        #endif
-        #if numkeys >= 3
-            tv[2] = qt_3.measure()/4;
-        #endif
-        #if numkeys >= 4
-            tv[3] = qt_4.measure()/4;
-        #endif
-        #if numkeys >= 5
-            tv[4] = qt_5.measure()/4;
-        #endif
-        #if numkeys >= 6
-            tv[5] = qt_6.measure()/4;
-        #endif
+        for (uint8_t x=0; x<numkeys; x++) tv[x] = qt[x].measure()/4;
         for (uint8_t x=0; x<numkeys; x++) {
             if (tv[x] > threshold[x]) pressed[x] = 0;
             else if ( tv[x] < threshold[x] - resetValue ) pressed[x] = 1;
@@ -509,6 +475,7 @@ void menu(){
 #ifdef TOUCH
     Serial.println(F("6 to set the touch sensitivity"));
     Serial.println(F("7 to auto-calibrate touch sensitivity"));
+    Serial.println(F("8 to set the touchpad reset value"));
 #else
     Serial.println(F("6 to set the debounce interval"));
 #endif
@@ -546,13 +513,23 @@ void idleExp(){
     Serial.print(F("Current value: "));
     Serial.println(idleMinutes);
 }
+void resetExp(){
+    Serial.println(F("Please enter a touchpad reset value between 0 and 255."));
+    Serial.println(F("This value determines how much force is required for the release of a pad."));
+    Serial.println(F("A sane value is 5-15. Below 5 is not recommended as it may cause"));
+    Serial.println(F("the pad to spam inputs."));
+    Serial.print(F("Current value: "));
+    Serial.println(resetValue);
+}
 void debounceExp(){
     Serial.println(F("Enter a debounce value between 0 and 255."));
+    Serial.println(F("A sane value is 2-10."));
     Serial.print(F("Current value: "));
     Serial.print(debounceInterval);
 }
 void thresholdExp(){
     Serial.println(F("Enter a sensitivity value for each pad between 0 and 255 (higher is less sensitive.)"));
+    Serial.println(F("A sane value is 150-225."));
     Serial.print(F("Current values: "));
     for (uint8_t x=0; x<numkeys; x++) {
         Serial.print(threshold[x]);
@@ -890,6 +867,11 @@ void mainmenu() {
                     break;
                 case(7):
                     touch_calibrate();
+                    printBlock(1);
+                    break;
+                case(8):
+                    resetExp();
+                    resetValue = brightMenu();
                     printBlock(1);
                     break;
 #else

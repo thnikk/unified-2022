@@ -17,6 +17,10 @@
 #define SK_X     120
 #define SK_C     99
 #define SK_V     118
+#define SK_Q     113
+#define SK_W     119
+#define SK_E     101
+#define SK_A     97
 #define SK_S     115
 #define SK_D     100
 #define SK_F     102
@@ -66,7 +70,7 @@
         // 4k mega xiao
         #elif numkeys == 6
             const uint8_t pins[] = { 0, 1, 6, 7, 8, 9 };
-            static uint8_t threshold[] = { 220, 220, 220, 220, 220, 220 };
+            static uint8_t threshold[] = { 220, 225, 190, 190, 190, 190 };
             uint8_t mapping[] = {SK_Z, SK_X, SK_C, SK_V, SK_ESC, SK_BKTK};
         #endif
     #else
@@ -82,9 +86,9 @@
             uint8_t mapping[] = {SK_Z, SK_X, SK_ESC, SK_BKTK};
         // 6k
         #elif numkeys == 6
-            static uint8_t threshold[] = { 200, 200, 200, 200, 200, 200 };
+            static uint8_t threshold[] = { 170, 165, 130, 120, 110, 135 };
             const uint8_t pins[] = { A0, A1, A2, A3, A6, A7 };
-            uint8_t mapping[] = {SK_S, SK_D, SK_F, SK_J, SK_K, SK_L};
+            uint8_t mapping[] = {SK_Q, SK_W, SK_E, SK_A, SK_S, SK_D};
         #endif
     #endif
 #else
@@ -106,22 +110,24 @@
 #endif
 
 #ifdef TOUCH
+Adafruit_FreeTouch qt[] = {
 #if numkeys >= 1
-Adafruit_FreeTouch qt_1 = Adafruit_FreeTouch(pins[0], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch(pins[0], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
 #endif
 #if numkeys >= 2
-Adafruit_FreeTouch qt_2 = Adafruit_FreeTouch(pins[1], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch(pins[1], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
 #endif
 #if numkeys >= 3
-Adafruit_FreeTouch qt_3 = Adafruit_FreeTouch(pins[2], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch(pins[2], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
 #endif
 #if numkeys >= 4
-Adafruit_FreeTouch qt_4 = Adafruit_FreeTouch(pins[3], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch(pins[3], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
 #endif
 #if numkeys >= 5
-Adafruit_FreeTouch qt_5 = Adafruit_FreeTouch(pins[4], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch(pins[4], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
 #endif
 #if numkeys >= 6
-Adafruit_FreeTouch qt_6 = Adafruit_FreeTouch(pins[5], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE);
+Adafruit_FreeTouch(pins[5], OVERSAMPLE_8, RESISTOR_50K, FREQ_MODE_NONE),
 #endif
+};
 #endif

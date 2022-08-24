@@ -21,13 +21,13 @@ This firmware is currently being used for my newer 2022 model keypads.
 - [x] Allow changing touch sensitivity in the configurator.
 - [x] Have menu option for auto-calibration.
 - [ ] Add max values for incoming data through serial monitor
+- [x] RGBW LED support
 
 # Omissions
 
 I have removed some features from the original firmware to simplify some of the code. The focus was on removing legacy code, as trying to keep it backwards compatible was adding too much complexity. These features may be re-implemented in the future. The removed features are:
 
  - Multi-mode side button: This complicates storing mapping in EEPROM and conflicts with multi-key mapping. It's also less intuitive than having it just function as a normal button.
- - RGBW LED support: This is also unnecessary complication as I exclusively use RGB LEDs now.
  - AVR support: Any future 7k model will most likely use a SAMD21 board, so this is unnecessary.
 
 

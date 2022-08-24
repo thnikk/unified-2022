@@ -2,12 +2,15 @@
 #include <Arduino.h>
 #include <Bounce2.h>
 #include <HID-Project.h>
-#include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 // Pins, mappings, and board-specific libraries in this file
 #include <models.h>
 #include <FlashAsEEPROM.h>
 
-CRGBArray<numkeys> leds;
+#ifndef LED_TYPE
+#define LED_TYPE NEO_GRB
+#endif
+Adafruit_NeoPixel pixels(numleds, neopin, LED_TYPE); 
 
 Bounce * bounce = new Bounce[numkeys];
 
@@ -19,11 +22,14 @@ static bool lastPressed[numkeys];
 static uint8_t b = 127;
 static uint8_t bMax = b;
 
-// Default LED mode and speed of effects
+// Default LED mode
 static uint8_t ledMode = 0;
-static uint8_t effectSpeed = 10;
 
+// Default debounce interval
 static uint8_t debounceInterval = 4;
+
+// Default reset value for touch pads
+static uint8_t resetValue = 12;
 
 // Colors for custom LED mode
 // These are the initial values stored before changed through the remapper
@@ -65,6 +71,7 @@ void eepromLoad(){
     ledMode = EEPROM.read(2);
     idleMinutes = EEPROM.read(3);
     debounceInterval = EEPROM.read(4);
+    resetValue = EEPROM.read(5);
     for (uint8_t x=0;x<numkeys;x++) {
         custColor[x] = EEPROM.read(colAddr+x);
         mapping[x] = EEPROM.read(mapAddr+x);
@@ -78,6 +85,7 @@ void eepromUpdate(){
     if (ledMode != EEPROM.read(2)) EEPROM.write(2, ledMode);
     if (idleMinutes != EEPROM.read(3)) EEPROM.write(3, idleMinutes);
     if (debounceInterval != EEPROM.read(4)) EEPROM.write(4, debounceInterval);
+    if (resetValue != EEPROM.read(5)) EEPROM.write(5, resetValue);
     for (uint8_t x=0; x<numkeys; x++) {
         if (custColor[x] != EEPROM.read(colAddr+x)) EEPROM.write(colAddr+x, custColor[x]);
         if (mapping[x] != EEPROM.read(mapAddr+x)) EEPROM.write(mapAddr+x, mapping[x]);
@@ -87,7 +95,7 @@ void eepromUpdate(){
 }
 
 void setup() {
-    // Fix QTPY neopixel
+    // Fix QTPY NeoPixel
     #ifdef QTPY
     PORT->Group[0].PINCFG[15].bit.DRVSTR = 1;
     #endif
@@ -96,10 +104,8 @@ void setup() {
     Serial.begin(9600);
 
     // Initialize LEDs
-    FastLED.addLeds<NEOPIXEL, neopin>(leds, numleds);
-
-    // Set brightness
-    FastLED.setBrightness(255);
+    pixels.begin();
+    pixels.show();
 
     // Initialize EEPROM
     if (!EEPROM.isValid()) eepromUpdate();
@@ -107,16 +113,15 @@ void setup() {
 
 // Initialize touchpads
 #ifdef TOUCH
-    qt_1.begin();
-    qt_2.begin();
-    #if numkeys >= 3
-        qt_3.begin();
+    for (uint8_t x=0; x<numkeys; x++) qt[x].begin();
+    #ifdef XIAO
+    pinMode(11, INPUT_PULLUP);
+    pinMode(12, INPUT_PULLUP);
+    pinMode(13, INPUT_PULLUP);
+    #else
+    pinMode(12, OUTPUT);
+    digitalWrite(12, HIGH);
     #endif
-    #if numkeys >= 4
-        qt_4.begin();
-    #endif
-        pinMode(12, OUTPUT);
-        digitalWrite(12, HIGH);
 #else
     // Set pullups and attach pins to debounce lib with debounce time (in ms)
     for (uint8_t x=0; x<numkeys; x++) {
@@ -140,22 +145,11 @@ void checkKeys() {
     anyPressed = 0;
 #if defined (TOUCH)
     if ((millis() - touchMillis) > 0) {
-        tv[0] = qt_1.measure()/4;
-        if (tv[0] > threshold[0]) pressed[0] = 0;
-        else if ( tv[0] < threshold[0] - 12 ) pressed[0] = 1;
-        tv[1] = qt_2.measure()/4;
-        if (tv[1] > threshold[1]) pressed[1] = 0;
-        else if ( tv[1] < threshold[1] - 12 ) pressed[1] = 1;
-        #if numkeys >= 3
-            tv[2] = qt_3.measure()/4;
-            if (tv[2] > threshold[2]) pressed[2] = 0;
-            else if ( tv[2] < threshold[2] - 12 ) pressed[2] = 1;
-        #endif
-        #if numkeys >= 4
-            tv[3] = qt_4.measure()/4;
-            if (tv[3] > threshold[3]) pressed[3] = 0;
-            else if ( tv[3] < threshold[3] - 12 ) pressed[3] = 1;
-        #endif
+        for (uint8_t x=0; x<numkeys; x++) tv[x] = qt[x].measure()/4;
+        for (uint8_t x=0; x<numkeys; x++) {
+            if (tv[x] > threshold[x]) pressed[x] = 0;
+            else if ( tv[x] < threshold[x] - resetValue ) pressed[x] = 1;
+        }
         touchMillis = millis();
     }
 #else
@@ -273,19 +267,22 @@ void keyboard() {
     }
 }
 
+uint32_t hsv_mult = 256;
+
 // Cycle through rainbow
 void wheel(){
     static uint8_t hue;
+#if numleds == 1
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
+#else
     for(uint8_t i = 0; i < numleds; i++) {
-        if (pressed[i]) leds[i] = CHSV(hue+(i*20),255,255);
-        else leds[i] = 0xFFFFFF;
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*hsv_mult, 255, b));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, b));
     }
-#if defined (TOUCH)
-    if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
-    else leds[0] = 0xFFFFFFFF;
 #endif
     hue--;
-    FastLED.show();
+    pixels.show();
 }
 
 // Highlight the key being remapped.
@@ -293,13 +290,13 @@ static uint8_t selected;
 void highlightSelected(){
     uint8_t hue = (255/numkeys);
     for(uint8_t i = 0; i < numkeys; i++) {
-        leds[i] = CHSV(hue,255,255);
-        if (i == selected) leds[i] = 0xFFFFFF;
+        pixels.setPixelColor(i, pixels.ColorHSV(hue*hsv_mult, 255, b));
+        if (i == selected) pixels.setPixelColor(i, pixels.Color(255, 255, b)); 
     }
-#if defined (TOUCH)
-    if (anyPressed == 0) leds[0] = CHSV(hue,255,255);
+#if numleds == 1
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
 #endif
-    FastLED.show();
+    pixels.show();
 }
 
 // Fade from white to rainbow to off
@@ -318,9 +315,10 @@ void rbFade(){
             sat[i]=0;
             val[i]=255;
         }
-        leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
+        //leds[i] = CHSV(hue+(i*50),sat[i],val[i]);
+        pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*50))*hsv_mult, sat[i], val[i] * b / 255));
     }
-#if defined (TOUCH)
+#if numleds == 1
     static int satDS;
     static int valDS;
     if (anyPressed) {
@@ -330,11 +328,12 @@ void rbFade(){
         if (valDS < 0) valDS = 0; // Same for val
     }
     else { satDS=0; valDS=255; }
-    leds[0] = CHSV(hue,satDS,valDS);
+    //leds[0] = CHSV(hue,satDS,valDS);
+    pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, satDS, valDS * b / 255));
 #endif
     hue-=8;
     if (hue < 0) hue = 255;
-    FastLED.show();
+    pixels.show();
 }
 
 // Custom colors
@@ -342,15 +341,17 @@ void custom(){
     // Iterate through keys
     for(int i = 0; i < numkeys; i++) {
         // adjust LED order for special keypads
-        if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
-        else leds[i] = 0xFFFFFF;
+        //if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
+        //else leds[i] = 0xFFFFFF;
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV(custColor[i]*hsv_mult, 255, b));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, 255));
     }
-#if defined (TOUCH)
-    // Set DotStar to left key color
-    if (anyPressed == 0) leds[0] = CHSV(custColor[0],255,255);
-    else leds[0] = 0xFFFFFF;
+#if numleds == 1
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(custColor[0]*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, 255));
 #endif
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 }
 
 static unsigned long avgMillis;
@@ -380,14 +381,15 @@ void bps(){
     uint8_t finalColor = lastColor%256;
 
     for(int i = 0; i < numleds; i++) {
-        if (pressed[i]) leds[i] = CHSV(finalColor+100,255,255);
-        else leds[i] = 0xFFFFFF;
+        if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((finalColor+100)*hsv_mult, 255, b));
+        else pixels.setPixelColor(i, pixels.Color(255, 255, b));
     }
-#if defined (TOUCH)
-    if (anyPressed == 0) leds[0] = CHSV(finalColor+100,255,255);
-    else leds[0] = 0xFFFFFF;
+#if numleds == 1
+    if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV((finalColor+100)*hsv_mult, 255, b));
+    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
 #endif
-    FastLED.show();
+    //FastLED.show();
+    pixels.show();
 
 }
 
@@ -414,8 +416,6 @@ void effects(uint8_t speed, uint8_t MODE) {
         if (b < bMax) b++;
         if (b > bMax) b--;
 
-        // Set brightness and global effect speed
-        FastLED.setBrightness(b);
         effectMillis = millis();
     }
 }
@@ -446,6 +446,14 @@ void serialDebug() {
             else Serial.println();
         }
 
+        // Print touch values
+        Serial.print("Touch values: ");
+        for (uint8_t x=0; x<numkeys; x++) {
+            Serial.print(tv[x]);
+            if (x<numkeys-1) Serial.print(", ");
+            else Serial.println();
+        }
+
         count = 0;
         serialDebugMillis = millis();
     }
@@ -467,6 +475,7 @@ void menu(){
 #ifdef TOUCH
     Serial.println(F("6 to set the touch sensitivity"));
     Serial.println(F("7 to auto-calibrate touch sensitivity"));
+    Serial.println(F("8 to set the touchpad reset value"));
 #else
     Serial.println(F("6 to set the debounce interval"));
 #endif
@@ -504,13 +513,23 @@ void idleExp(){
     Serial.print(F("Current value: "));
     Serial.println(idleMinutes);
 }
+void resetExp(){
+    Serial.println(F("Please enter a touchpad reset value between 0 and 255."));
+    Serial.println(F("This value determines how much force is required for the release of a pad."));
+    Serial.println(F("A sane value is 5-15. Below 5 is not recommended as it may cause"));
+    Serial.println(F("the pad to spam inputs."));
+    Serial.print(F("Current value: "));
+    Serial.println(resetValue);
+}
 void debounceExp(){
     Serial.println(F("Enter a debounce value between 0 and 255."));
+    Serial.println(F("A sane value is 2-10."));
     Serial.print(F("Current value: "));
     Serial.print(debounceInterval);
 }
 void thresholdExp(){
     Serial.println(F("Enter a sensitivity value for each pad between 0 and 255 (higher is less sensitive.)"));
+    Serial.println(F("A sane value is 150-225."));
     Serial.print(F("Current values: "));
     for (uint8_t x=0; x<numkeys; x++) {
         Serial.print(threshold[x]);
@@ -848,6 +867,11 @@ void mainmenu() {
                     break;
                 case(7):
                     touch_calibrate();
+                    printBlock(1);
+                    break;
+                case(8):
+                    resetExp();
+                    resetValue = brightMenu();
                     printBlock(1);
                     break;
 #else

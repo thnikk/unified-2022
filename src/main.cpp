@@ -344,8 +344,6 @@ void custom(){
     // Iterate through keys
     for(int i = 0; i < numkeys; i++) {
         // adjust LED order for special keypads
-        //if (pressed[i]) leds[i] = CHSV(custColor[i],255,255);
-        //else leds[i] = 0xFFFFFF;
         if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV(custColor[i]*hsv_mult, 255, b));
         else pixels.setPixelColor(i, pixels.Color(255, 255, 255));
     }
@@ -353,7 +351,6 @@ void custom(){
     if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(custColor[0]*hsv_mult, 255, b));
     else pixels.setPixelColor(0, pixels.Color(255, 255, 255));
 #endif
-    //FastLED.show();
     pixels.show();
 }
 
@@ -411,8 +408,7 @@ void effects(uint8_t speed, uint8_t MODE) {
             case 3:
                 bps(); break;
             case 4:
-                //highlightSelected();
-                break;
+                highlightSelected(); break;
         }
 
         // Fade brightness on idle change

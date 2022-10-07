@@ -277,11 +277,11 @@ void wheel(){
     static uint8_t hue;
 #if numleds == 1
     if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
-    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
+    else pixels.setPixelColor(0, pixels.ColorHSV(255, 0, b));
 #else
     for(uint8_t i = 0; i < numleds; i++) {
         if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((hue+(i*20))*hsv_mult, 255, b));
-        else pixels.setPixelColor(i, pixels.Color(255, 255, b));
+        else pixels.setPixelColor(i, pixels.ColorHSV(255, 0, b));
     }
 #endif
     hue--;
@@ -294,7 +294,7 @@ void highlightSelected(){
     uint8_t hue = (255/numkeys);
     for(uint8_t i = 0; i < numkeys; i++) {
         pixels.setPixelColor(i, pixels.ColorHSV(hue*hsv_mult, 255, b));
-        if (i == selected) pixels.setPixelColor(i, pixels.Color(255, 255, b)); 
+        if (i == selected) pixels.setPixelColor(i, pixels.ColorHSV(255, 0, b)); 
     }
 #if numleds == 1
     if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(hue*hsv_mult, 255, b));
@@ -345,11 +345,11 @@ void custom(){
     for(int i = 0; i < numkeys; i++) {
         // adjust LED order for special keypads
         if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV(custColor[i]*hsv_mult, 255, b));
-        else pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+        else pixels.setPixelColor(i, pixels.ColorHSV(255, 0, b));
     }
 #if numleds == 1
     if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV(custColor[0]*hsv_mult, 255, b));
-    else pixels.setPixelColor(0, pixels.Color(255, 255, 255));
+    else pixels.setPixelColor(0, pixels.ColorHSV(255, 0, b));
 #endif
     pixels.show();
 }
@@ -382,11 +382,11 @@ void bps(){
 
     for(int i = 0; i < numleds; i++) {
         if (pressed[i]) pixels.setPixelColor(i, pixels.ColorHSV((finalColor+100)*hsv_mult, 255, b));
-        else pixels.setPixelColor(i, pixels.Color(255, 255, b));
+        else pixels.setPixelColor(i, pixels.ColorHSV(255, 0, b));
     }
 #if numleds == 1
     if (anyPressed == 0) pixels.setPixelColor(0, pixels.ColorHSV((finalColor+100)*hsv_mult, 255, b));
-    else pixels.setPixelColor(0, pixels.Color(255, 255, b));
+    else pixels.setPixelColor(0, pixels.ColorHSV(255, 0, b));
 #endif
     //FastLED.show();
     pixels.show();
